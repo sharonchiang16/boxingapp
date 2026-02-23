@@ -260,16 +260,16 @@
 
             const submitToForm = (data, type) => {
                 setLoading(true);
-                let finalType = `${type}_${identityType === 'ntu' ? 'NTU' : 'External'}`;
                 
-                if (type === 'Trial') finalType = 'Trial';
-                
-                if (type === 'Member' && data.date) {
-                    finalType = `${finalType}_日期:${data.date}`;
+                // ✅ 改 1：完全移除日期對 finalType 的拼接，只保留純粹的分類
+                let finalType = type;
+                if (type === 'Member' || type === 'Purchase') {
+                    finalType = `${type}_${identityType === 'ntu' ? 'NTU' : 'External'}`;
                 }
 
+                // ✅ 改 2：精準判斷，避免 Trial (預設 ntu) 的手機被誤清空
                 let phoneValue = data.phone || "";
-                if (identityType === 'ntu') {
+                if ((type === 'Member' || type === 'Purchase') && identityType === 'ntu') {
                     phoneValue = "";
                 }
 
@@ -282,10 +282,18 @@
                     "entry.219588854": data.last5 || ""
                 };
 
+                // ✅ 改 5 (部分)：送出前在 Console 印出完整的 entries
+                console.log("====================================");
+                console.log("🚀【準備送出至 Google Form】🚀");
+                console.log("原始觸發類型 (type):", type);
+                console.log("封裝的資料 (Entries):", entries);
+                console.log("====================================");
+
                 const form = document.createElement('form');
                 form.action = FORM_URL;
                 form.method = 'POST';
-                form.target = 'hidden_iframe'; 
+                // 這裡改成 _blank 強迫彈出新分頁，讓 Google 親口告訴我們有沒有錯
+                form.target = '_blank'; 
 
                 for (const [key, value] of Object.entries(entries)) {
                     const input = document.createElement('input');
@@ -297,14 +305,15 @@
 
                 document.body.appendChild(form);
                 
-                // 正式版：隱藏送出表單，不再彈出 Alert 視窗
+                // 真正送出表單
                 form.submit();
 
-                // 等待 1.5 秒後，自然跳轉到成功頁面
+                // ✅ 改 5：暫停自動跳轉到成功畫面，避免假成功
                 setTimeout(() => {
                     setLoading(false);
-                    setPage('success');
+                    alert("【測試防呆模式】封包已發出！\n\n1. 請看剛剛彈出的新分頁，Google 是寫『已收到回覆』還是顯示紅字錯誤。\n2. 也可以按 F12 看 Console 印出的資料。\n\n※ 確認資料真的進 Google Sheet 後，我們再把自動跳轉成功頁加回來。");
                     document.body.removeChild(form);
+                    // setPage('success'); // 故意註解掉這行，先不跳轉！
                 }, 1500);
             };
 
