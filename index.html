@@ -23,7 +23,7 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <!-- 這裡多了一個隱藏的 iframe，用來吸收 Google 表單回傳的畫面，這樣我們的網頁就不會跳走 -->
+    <!-- 隱藏的 iframe -->
     <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
     
     <div id="root"></div>
@@ -103,7 +103,7 @@
                 </button>
                 <div className="mt-4 text-center">
                     <p className="text-xs text-gray-400">© 2026 NTU Boxing Club</p>
-                    <p className="text-xs text-gray-300 mt-1">v7.0 Hidden-Form</p>
+                    <p className="text-xs text-gray-300 mt-1">v7.2 Debug-Mode</p>
                 </div>
             </div>
         );
@@ -214,20 +214,17 @@
             </div>
         );
 
-        // --- 修改過的 SuccessPage：加入 QR Code 與提示文字 ---
         const SuccessPage = ({ setPage, onReset }) => (
             <div className="flex flex-col items-center justify-center h-full p-6 animate-scale-in text-center pb-20">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4"><Check size={40} className="text-green-600" /></div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">操作成功！</h2>
                 <p className="text-gray-500 mb-6">您的資料已送出。</p>
                 
-                {/* 新增的 LINE 群組 QR Code 區塊 */}
                 <div className="bg-white p-6 rounded-2xl w-full mb-6 border-2 border-green-500 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full bg-green-500 text-white text-xs font-bold py-1">重要通知</div>
                     <h3 className="text-lg font-bold text-gray-800 mt-4 mb-2">台大拳擊社事項通知群</h3>
                     <p className="text-sm text-gray-600 mb-4">請大家務必掃描下方 QR Code 加入群組！</p>
                     
-                    {/* 這裡設定讀取相同資料夾底下的 qr-code.jpg，若抓不到圖片會顯示備用圖片提示 */}
                     <img 
                         src="./qr-code.jpg" 
                         alt="LINE 群組 QR Code" 
@@ -264,29 +261,23 @@
 
             const submitToForm = (data, type) => {
                 setLoading(true);
-                let finalType = type;
+                let finalType = `${type}_${identityType === 'ntu' ? 'NTU' : 'External'}`;
                 
-                if (type === 'Member' || type === 'Purchase') {
-                    finalType = `${type}_${identityType === 'ntu' ? 'NTU' : 'External'}`;
-                }
+                // 如果是體驗課，就直接叫 Trial
+                if (type === 'Trial') finalType = 'Trial';
                 
                 if (type === 'Member' && data.date) {
                     finalType = `${finalType}_日期:${data.date}`;
                 }
 
                 let phoneValue = data.phone || "";
-                // 修正：直接判斷最原始的 type 和 identityType，這樣就不會被後面附加的「日期字串」干擾
-                if ((type === 'Member' || type === 'Purchase') && identityType === 'ntu') {
+                // 修正：如果是台大生，手機號碼留空
+                if (identityType === 'ntu') {
                     phoneValue = "";
                 }
 
-                const form = document.createElement('form');
-                form.action = FORM_URL;
-                form.method = 'POST';
-                form.target = 'hidden_iframe'; 
-
                 const entries = {
-                    "entry.279954985": finalType || "",
+                    "entry.279954985": finalType,
                     "entry.697528972": data.name || "",
                     "entry.1784570342": phoneValue,
                     "entry.1864980518": data.studentId || "",
@@ -294,12 +285,22 @@
                     "entry.219588854": data.last5 || ""
                 };
 
-                // 【開發測試】印出準備送出的資料，方便比對
-                console.log("====================================");
-                console.log("🚀【準備送出至 Google Form】🚀");
-                console.log("發送網址：", FORM_URL);
-                console.log("封裝的資料 (Entries)：", entries);
-                console.log("====================================");
+                // --- 偵測器：把要送出的資料顯示在畫面上 ---
+                alert(
+                    "【除錯模式】即將送出以下資料：\n\n" +
+                    "類型：" + entries["entry.279954985"] + "\n" +
+                    "姓名：" + entries["entry.697528972"] + "\n" +
+                    "手機：" + entries["entry.1784570342"] + "\n" +
+                    "學號：" + entries["entry.1864980518"] + "\n" +
+                    "系級：" + entries["entry.2007099999"] + "\n" +
+                    "後五碼：" + entries["entry.219588854"] + "\n\n" +
+                    "※ 按下「確定」後才會真正送出。如果去後台沒看到資料，代表 Google 表單可能有限制未關閉！"
+                );
+
+                const form = document.createElement('form');
+                form.action = FORM_URL;
+                form.method = 'POST';
+                form.target = 'hidden_iframe'; 
 
                 for (const [key, value] of Object.entries(entries)) {
                     const input = document.createElement('input');
@@ -311,15 +312,14 @@
 
                 document.body.appendChild(form);
                 
+                // 真正送出表單
                 form.submit();
 
-                // 【開發測試】暫停自動跳轉，改為彈窗提醒去檢查後台
+                // 等待 1.5 秒後跳到成功頁面
                 setTimeout(() => {
                     setLoading(false);
+                    setPage('success');
                     document.body.removeChild(form);
-                    alert("封包已由前端發出！\n\n1. 請按 F12 (或右鍵檢查) 打開 Console 確認送出的資料。\n2. 請前往 Google 表單的「回覆」或試算表查看是否真的有新增資料。\n\n確認成功後，我們再把自動跳轉的功能加回來。");
-                    // 開發階段先註解掉下一行，避免畫面跳走
-                    // setPage('success'); 
                 }, 1500);
             };
 
