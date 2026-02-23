@@ -18,12 +18,14 @@
         body { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
         input, select { -webkit-user-select: auto; user-select: auto; }
         @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scale-in { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
         .animate-fade-in { animation: fade-in 0.3s ease-out; }
         .animate-slide-in { animation: fade-in 0.3s ease-out; }
+        .animate-scale-in { animation: scale-in 0.3s ease-out; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <!-- 隱藏的 iframe，用來吸收 Google 表單回傳的畫面 -->
+    <!-- 隱藏的 iframe (給 Google Form 用的) -->
     <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
     
     <div id="root"></div>
@@ -31,12 +33,18 @@
     <script type="text/babel">
         const { useState } = React;
 
+        // ==========================================
+        // 🔑 兩大後台設定區
+        // ==========================================
+        
+        // 路線 A：購課/體驗 (直連 Google Form)
         const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSczkOvnq-sgwquckGdhvPryDrs-b1y4kWtZM0hYGcH5UgQKFg/formResponse";
 
-        const CLASS_DATES = [
-            "2026-03-04", "2026-03-11", "2026-03-18", "2026-03-25", "2026-04-01", 
-            "2026-04-22", "2026-04-29", "2026-05-06", "2026-05-13", "2026-05-20", "2026-05-27"
-        ];
+        // 路線 B：社員簽到 (對接 Google Apps Script)
+        // ⚠️ 請在這裡貼上您依照 Let's Write 教學取得的 Apps Script 網址 (結尾是 /exec)
+        const GOOGLE_SCRIPT_URL = "請將您的_Apps_Script_網址貼在這裡"; 
+        
+        // ==========================================
 
         const copyToClipboard = (text) => {
             const textArea = document.createElement("textarea");
@@ -125,15 +133,6 @@
                 <h2 className="text-2xl font-bold text-red-900 mb-2 border-l-4 border-red-800 pl-3">{identityType === 'ntu' ? '台大社員簽到' : '校外社員簽到'}</h2>
                 <p className="text-sm text-gray-500 mb-6 pl-4">Member Check-in</p>
                 <form onSubmit={(e) => { e.preventDefault(); submitToForm(memberData, 'Member'); }} className="flex flex-col gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">上課日期</label>
-                        <div className="relative">
-                            <select required className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg appearance-none focus:ring-2 focus:ring-red-500 outline-none" value={memberData.date} onChange={(e) => setMemberData({...memberData, date: e.target.value})}>
-                                {CLASS_DATES.map(date => <option key={date} value={date}>{date}</option>)}
-                            </select>
-                            <CalendarIcon className="absolute right-3 top-3.5 text-gray-400" />
-                        </div>
-                    </div>
                     {identityType === 'ntu' ? (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">學號 (Student ID)</label>
@@ -249,7 +248,7 @@
             const [loading, setLoading] = useState(false);
             const [identityType, setIdentityType] = useState('ntu'); 
             
-            const [memberData, setMemberData] = useState({ studentId: '', phone: '', name: '', date: new Date().toISOString().split('T')[0] });
+            const [memberData, setMemberData] = useState({ studentId: '', phone: '', name: '' });
             const [purchaseData, setPurchaseData] = useState({ name: '', studentId: '', department: '', phone: '', last5: '' });
             const [trialData, setTrialData] = useState({ name: '', phone: '', last5: '', date: new Date().toISOString().split('T')[0] });
 
@@ -258,68 +257,105 @@
                 setter({ ...currentData, studentId: val });
             };
 
-            const submitToForm = (data, type) => {
+            // ==========================================
+            // 🚀 雙軌分流提交邏輯
+            // ==========================================
+            const submitToForm = async (data, type) => {
                 setLoading(true);
                 
-                // ✅ 改 1：完全移除日期對 finalType 的拼接，只保留純粹的分類
-                let finalType = type;
-                if (type === 'Member' || type === 'Purchase') {
-                    finalType = `${type}_${identityType === 'ntu' ? 'NTU' : 'External'}`;
+                // ------------------------------------------
+                // 路線 A：社員簽到 -> 送到 Google Apps Script
+                // ------------------------------------------
+                if (type === 'Member') {
+                    if (GOOGLE_SCRIPT_URL.includes("請將您的_Apps_Script_網址貼在這裡")) {
+                        alert("【開發提示】\n您尚未填寫 Google Apps Script 的網址！\n請先依照 Let's Write 的教學建立 Apps Script，並將網址填入程式碼的 GOOGLE_SCRIPT_URL 中。");
+                        setLoading(false);
+                        return;
+                    }
+
+                    // 整理要送到 Apps Script 的 JSON 資料 (移除 date)
+                    const payload = {
+                        action: "member_checkin",
+                        timestamp: new Date().toLocaleString('zh-TW'),
+                        identity: identityType === 'ntu' ? 'NTU' : 'External',
+                        studentId: identityType === 'ntu' ? data.studentId : '',
+                        phone: identityType === 'external' ? data.phone : '',
+                        name: data.name
+                    };
+
+                    try {
+                        await fetch(GOOGLE_SCRIPT_URL, {
+                            method: "POST",
+                            mode: "no-cors", // 避免跨域阻擋
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        setTimeout(() => {
+                            setLoading(false);
+                            setPage('success');
+                        }, 1000);
+                    } catch (err) {
+                        console.error("Apps Script 發送失敗", err);
+                        alert("連線發生錯誤，請檢查網路。");
+                        setLoading(false);
+                    }
+
+                // ------------------------------------------
+                // 路線 B：購買課程 / 體驗課 -> 送到 Google Form
+                // ------------------------------------------
+                } else {
+                    let finalType = type;
+                    if (type === 'Purchase') {
+                        finalType = `Purchase_${identityType === 'ntu' ? 'NTU' : 'External'}`;
+                    } else if (type === 'Trial') {
+                        finalType = 'Trial';
+                    }
+
+                    // 台大生不需要傳送手機號碼 (Trial 預設保留手機)
+                    let phoneValue = data.phone || "";
+                    if (type === 'Purchase' && identityType === 'ntu') {
+                        phoneValue = "";
+                    }
+
+                    // 將資料映射到 Google Form 欄位
+                    const entries = {
+                        "entry.279954985": finalType || "",
+                        "entry.697528972": data.name || "",
+                        "entry.1784570342": phoneValue || "",
+                        "entry.1864980518": data.studentId || "",
+                        "entry.2007099999": data.department || "",
+                        "entry.219588854": data.last5 || ""
+                    };
+
+                    const form = document.createElement('form');
+                    form.action = FORM_URL;
+                    form.method = 'POST';
+                    form.target = 'hidden_iframe'; 
+
+                    for (const [key, value] of Object.entries(entries)) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = key;
+                        input.value = value;
+                        form.appendChild(input);
+                    }
+
+                    document.body.appendChild(form);
+                    
+                    form.submit();
+
+                    setTimeout(() => {
+                        setLoading(false);
+                        setPage('success');
+                        document.body.removeChild(form);
+                    }, 1500);
                 }
-
-                // ✅ 改 2：精準判斷，避免 Trial (預設 ntu) 的手機被誤清空
-                let phoneValue = data.phone || "";
-                if ((type === 'Member' || type === 'Purchase') && identityType === 'ntu') {
-                    phoneValue = "";
-                }
-
-                const entries = {
-                    "entry.279954985": finalType,
-                    "entry.697528972": data.name || "",
-                    "entry.1784570342": phoneValue,
-                    "entry.1864980518": data.studentId || "",
-                    "entry.2007099999": data.department || "",
-                    "entry.219588854": data.last5 || ""
-                };
-
-                // ✅ 改 5 (部分)：送出前在 Console 印出完整的 entries
-                console.log("====================================");
-                console.log("🚀【準備送出至 Google Form】🚀");
-                console.log("原始觸發類型 (type):", type);
-                console.log("封裝的資料 (Entries):", entries);
-                console.log("====================================");
-
-                const form = document.createElement('form');
-                form.action = FORM_URL;
-                form.method = 'POST';
-                // 這裡改成 _blank 強迫彈出新分頁，讓 Google 親口告訴我們有沒有錯
-                form.target = '_blank'; 
-
-                for (const [key, value] of Object.entries(entries)) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    input.value = value;
-                    form.appendChild(input);
-                }
-
-                document.body.appendChild(form);
-                
-                // 真正送出表單
-                form.submit();
-
-                // ✅ 改 5：暫停自動跳轉到成功畫面，避免假成功
-                setTimeout(() => {
-                    setLoading(false);
-                    alert("【測試防呆模式】封包已發出！\n\n1. 請看剛剛彈出的新分頁，Google 是寫『已收到回覆』還是顯示紅字錯誤。\n2. 也可以按 F12 看 Console 印出的資料。\n\n※ 確認資料真的進 Google Sheet 後，我們再把自動跳轉成功頁加回來。");
-                    document.body.removeChild(form);
-                    // setPage('success'); // 故意註解掉這行，先不跳轉！
-                }, 1500);
             };
 
             const resetAndGoHome = () => {
                 setPage('home');
-                setMemberData({studentId: '', phone: '', name: '', date: new Date().toISOString().split('T')[0]});
+                setMemberData({studentId: '', phone: '', name: ''});
                 setPurchaseData({name: '', studentId: '', department: '', phone: '', last5: ''});
                 setTrialData({name: '', phone: '', last5: '', date: new Date().toISOString().split('T')[0]});
             };
