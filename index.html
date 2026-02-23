@@ -275,7 +275,8 @@
                 }
 
                 let phoneValue = data.phone || "";
-                if (finalType === '社員簽到_NTU' || finalType === '購買課程_NTU') {
+                // 修正：直接判斷最原始的 type 和 identityType，這樣就不會被後面附加的「日期字串」干擾
+                if ((type === 'Member' || type === 'Purchase') && identityType === 'ntu') {
                     phoneValue = "";
                 }
 
@@ -293,6 +294,13 @@
                     "entry.219588854": data.last5 || ""
                 };
 
+                // 【開發測試】印出準備送出的資料，方便比對
+                console.log("====================================");
+                console.log("🚀【準備送出至 Google Form】🚀");
+                console.log("發送網址：", FORM_URL);
+                console.log("封裝的資料 (Entries)：", entries);
+                console.log("====================================");
+
                 for (const [key, value] of Object.entries(entries)) {
                     const input = document.createElement('input');
                     input.type = 'hidden';
@@ -305,10 +313,13 @@
                 
                 form.submit();
 
+                // 【開發測試】暫停自動跳轉，改為彈窗提醒去檢查後台
                 setTimeout(() => {
                     setLoading(false);
-                    setPage('success');
                     document.body.removeChild(form);
+                    alert("封包已由前端發出！\n\n1. 請按 F12 (或右鍵檢查) 打開 Console 確認送出的資料。\n2. 請前往 Google 表單的「回覆」或試算表查看是否真的有新增資料。\n\n確認成功後，我們再把自動跳轉的功能加回來。");
+                    // 開發階段先註解掉下一行，避免畫面跳走
+                    // setPage('success'); 
                 }, 1500);
             };
 
