@@ -31,7 +31,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useEffect } = React;
 
         // ==========================================
         // 🔑 兩大後台設定區
@@ -40,9 +40,9 @@
         // 路線 A：購課/體驗 (直連 Google Form)
         const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSczkOvnq-sgwquckGdhvPryDrs-b1y4kWtZM0hYGcH5UgQKFg/formResponse";
 
-        // 路線 B：社員簽到 (對接 Google Apps Script)
-        // ⚠️ 請在這裡貼上您依照 Let's Write 教學取得的 Apps Script 網址 (結尾是 /exec)
-        const GOOGLE_SCRIPT_URL = "請將您的_Apps_Script_網址貼在這裡"; 
+        // 路線 B：社員簽到 & 讀取會員名單 (對接 Google Apps Script)
+        // ⚠️ 已經更新為您最新取得的 /exec 網址
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwYmVBUg31Beu75yPhXyrFL7NPuCWVv4Rpzj0GW3OCWXu7N_RTga6OeAI72GcU09M2Q/exec"; 
         
         // ==========================================
 
@@ -60,7 +60,6 @@
         const CreditCard = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>;
         const ArrowLeft = ({size=24}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>;
         const Copy = ({size=16, className}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>;
-        const CalendarIcon = ({size=18, className}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>;
         const AlertCircle = ({size=18, className}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
         const Users = ({size=32}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
         const GraduationCap = ({size=32}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>;
@@ -72,13 +71,13 @@
         );
 
         const BackButton = ({ to, setPage }) => (
-            <button onClick={() => setPage(to)} className="flex items-center text-gray-500 mb-6 hover:text-red-800 transition-colors">
+            <button type="button" onClick={() => setPage(to)} className="flex items-center text-gray-500 mb-6 hover:text-red-800 transition-colors">
                 <ArrowLeft size={20} /> <span className="ml-1">返回</span>
             </button>
         );
 
         const IdentityCard = ({ icon: Icon, title, subtitle, onClick, colorClass = "border-red-800 text-red-800" }) => (
-            <button onClick={onClick} className={`w-full group relative overflow-hidden bg-white border-2 ${colorClass} rounded-2xl p-6 shadow-md active:scale-95 transition-all hover:bg-gray-50 flex flex-col items-center gap-2`}>
+            <button type="button" onClick={onClick} className={`w-full group relative overflow-hidden bg-white border-2 ${colorClass} rounded-2xl p-6 shadow-md active:scale-95 transition-all hover:bg-gray-50 flex flex-col items-center gap-2`}>
                 <Icon size={32} />
                 <span className="text-xl font-bold">{title}</span>
                 <span className="text-xs opacity-75">{subtitle}</span>
@@ -91,19 +90,19 @@
                     <p className="text-gray-600 text-lg">歡迎來到台大拳擊社</p>
                     <p className="text-sm text-gray-500">請選擇您的服務</p>
                 </div>
-                <button onClick={() => setPage('member_select')} className="group bg-white border-2 border-red-800 text-red-800 rounded-2xl p-6 shadow-lg active:scale-95 transition-all hover:bg-red-50">
+                <button type="button" onClick={() => setPage('member_select')} className="group bg-white border-2 border-red-800 text-red-800 rounded-2xl p-6 shadow-lg active:scale-95 transition-all hover:bg-red-50">
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col items-start"><span className="text-2xl font-bold">我是社員</span><span className="text-sm opacity-75">Member Check-in</span></div>
                         <User size={40} />
                     </div>
                 </button>
-                <button onClick={() => setPage('purchase_select')} className="group bg-slate-100 border-2 border-slate-600 text-slate-800 rounded-2xl p-6 shadow-lg active:scale-95 transition-all hover:bg-slate-200">
+                <button type="button" onClick={() => setPage('purchase_select')} className="group bg-slate-100 border-2 border-slate-600 text-slate-800 rounded-2xl p-6 shadow-lg active:scale-95 transition-all hover:bg-slate-200">
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col items-start"><span className="text-2xl font-bold">購買課程</span><span className="text-sm opacity-75">Purchase Course</span></div>
                         <CreditCard size={40} />
                     </div>
                 </button>
-                <button onClick={() => setPage('trial')} className="group bg-slate-800 text-white rounded-2xl p-6 shadow-lg active:scale-95 transition-all hover:bg-slate-700">
+                <button type="button" onClick={() => setPage('trial')} className="group bg-slate-800 text-white rounded-2xl p-6 shadow-lg active:scale-95 transition-all hover:bg-slate-700">
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col items-start"><span className="text-2xl font-bold">我要體驗</span><span className="text-sm opacity-75">Single Trial Class</span></div>
                         <Check size={40} />
@@ -131,7 +130,7 @@
             <div className="p-6 animate-slide-in">
                 <BackButton to="member_select" setPage={setPage} />
                 <h2 className="text-2xl font-bold text-red-900 mb-2 border-l-4 border-red-800 pl-3">{identityType === 'ntu' ? '台大社員簽到' : '校外社員簽到'}</h2>
-                <p className="text-sm text-gray-500 mb-6 pl-4">Member Check-in</p>
+                <p className="text-sm text-gray-500 mb-6 pl-4">系統會自動記錄您當下的打卡時間</p>
                 <form onSubmit={(e) => { e.preventDefault(); submitToForm(memberData, 'Member'); }} className="flex flex-col gap-4">
                     {identityType === 'ntu' ? (
                         <div>
@@ -144,7 +143,7 @@
                             <input type="tel" required placeholder="09xxxxxxxx" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-600 outline-none font-mono" value={memberData.phone} onChange={(e) => setMemberData({...memberData, phone: e.target.value})} />
                         </div>
                     )}
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">姓名</label><input type="text" required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none" value={memberData.name} onChange={(e) => setMemberData({...memberData, name: e.target.value})} /></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">姓名 (需與表單一致)</label><input type="text" required className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 outline-none" value={memberData.name} onChange={(e) => setMemberData({...memberData, name: e.target.value})} /></div>
                     <button type="submit" disabled={loading} className={`mt-4 w-full text-white py-4 rounded-xl font-bold text-lg shadow-md active:scale-95 transition-all disabled:opacity-50 flex justify-center items-center ${identityType === 'ntu' ? 'bg-red-800 hover:bg-red-900' : 'bg-slate-800 hover:bg-slate-900'}`}>{loading ? "處理中..." : "確認簽到"}</button>
                 </form>
             </div>
@@ -239,7 +238,7 @@
                     <p className="text-sm text-gray-500 mb-1">完成時間</p>
                     <p className="font-mono text-lg font-bold text-gray-700">{new Date().toLocaleString('zh-TW', { hour12: false })}</p>
                 </div>
-                <button onClick={onReset} className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-300 transition-all">返回首頁</button>
+                <button type="button" onClick={onReset} className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-300 transition-all">返回首頁</button>
             </div>
         );
 
@@ -250,16 +249,34 @@
             
             const [memberData, setMemberData] = useState({ studentId: '', phone: '', name: '' });
             const [purchaseData, setPurchaseData] = useState({ name: '', studentId: '', department: '', phone: '', last5: '' });
-            const [trialData, setTrialData] = useState({ name: '', phone: '', last5: '', date: new Date().toISOString().split('T')[0] });
+            const [trialData, setTrialData] = useState({ name: '', phone: '', last5: '' });
+
+            // ======= 讀取 Google 資料庫 =======
+            const [membersDb, setMembersDb] = useState([]);
+            const [isDbLoaded, setIsDbLoaded] = useState(false);
+
+            useEffect(() => {
+                // 網頁載入時，發送 GET 請求去抓會員名單
+                if (GOOGLE_SCRIPT_URL && !GOOGLE_SCRIPT_URL.includes("請將您的")) {
+                    fetch(GOOGLE_SCRIPT_URL)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (Array.isArray(data)) {
+                                setMembersDb(data);
+                                setIsDbLoaded(true);
+                                console.log("會員資料庫載入成功！共", data.length, "筆");
+                            }
+                        })
+                        .catch(err => console.error("讀取會員庫失敗:", err));
+                }
+            }, []);
+            // ==================================
 
             const handleStudentIdChange = (e, setter, currentData) => {
                 const val = e.target.value.toUpperCase();
                 setter({ ...currentData, studentId: val });
             };
 
-            // ==========================================
-            // 🚀 雙軌分流提交邏輯
-            // ==========================================
             const submitToForm = async (data, type) => {
                 setLoading(true);
                 
@@ -268,10 +285,29 @@
                 // ------------------------------------------
                 if (type === 'Member') {
                     if (GOOGLE_SCRIPT_URL.includes("請將您的_Apps_Script_網址貼在這裡")) {
-                        alert("【開發提示】\n您尚未填寫 Google Apps Script 的網址！\n請先依照 Let's Write 的教學建立 Apps Script，並將網址填入程式碼的 GOOGLE_SCRIPT_URL 中。");
+                        alert("【開發提示】\n您尚未填寫 Google Apps Script 的網址！\n請先依照教學建立 Apps Script。");
                         setLoading(false);
                         return;
                     }
+
+                    // ====== 會員名單實時比對驗證 ======
+                    if (isDbLoaded && membersDb.length > 0) {
+                        // 在撈出來的資料庫中找這名字
+                        const isValidMember = membersDb.some(row => {
+                            // 考量到 Google Form 表頭可能命名為 "姓名", "NAME", "Name"，做多重容錯
+                            const dbName = String(row['姓名'] || row['NAME'] || row['Name'] || '').trim();
+                            return dbName === data.name.trim();
+                        });
+
+                        if (!isValidMember) {
+                            alert(`【查無會員資料】\n資料庫中找不到「${data.name}」的紀錄！\n\n1. 請確認您是否已完成「購買課程」或「我要體驗」登記。\n2. 確保您輸入的姓名與表單填寫完全相同。`);
+                            setLoading(false);
+                            return; // 終止發送
+                        }
+                    } else if (!isDbLoaded && !GOOGLE_SCRIPT_URL.includes("請將您的")) {
+                        console.warn("⚠️ 會員資料庫尚未載入完成，直接放行測試");
+                    }
+                    // ==================================
 
                     // 整理要送到 Apps Script 的 JSON 資料 (移除 date)
                     const payload = {
@@ -286,7 +322,7 @@
                     try {
                         await fetch(GOOGLE_SCRIPT_URL, {
                             method: "POST",
-                            mode: "no-cors", // 避免跨域阻擋
+                            mode: "no-cors", 
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(payload)
                         });
@@ -312,13 +348,11 @@
                         finalType = 'Trial';
                     }
 
-                    // 台大生不需要傳送手機號碼 (Trial 預設保留手機)
                     let phoneValue = data.phone || "";
                     if (type === 'Purchase' && identityType === 'ntu') {
                         phoneValue = "";
                     }
 
-                    // 將資料映射到 Google Form 欄位
                     const entries = {
                         "entry.279954985": finalType || "",
                         "entry.697528972": data.name || "",
@@ -357,7 +391,7 @@
                 setPage('home');
                 setMemberData({studentId: '', phone: '', name: ''});
                 setPurchaseData({name: '', studentId: '', department: '', phone: '', last5: ''});
-                setTrialData({name: '', phone: '', last5: '', date: new Date().toISOString().split('T')[0]});
+                setTrialData({name: '', phone: '', last5: ''});
             };
 
             return (
