@@ -23,6 +23,9 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- 這裡多了一個隱藏的 iframe，用來吸收 Google 表單回傳的畫面，這樣我們的網頁就不會跳走 -->
+    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+    
     <div id="root"></div>
 
     <script type="text/babel">
@@ -98,7 +101,10 @@
                         <Check size={40} />
                     </div>
                 </button>
-                <div className="mt-4 text-center"><p className="text-xs text-gray-400">© 2026 NTU Boxing Club</p></div>
+                <div className="mt-4 text-center">
+                    <p className="text-xs text-gray-400">© 2026 NTU Boxing Club</p>
+                    <p className="text-xs text-gray-300 mt-1">v7.0 Hidden-Form</p>
+                </div>
             </div>
         );
 
@@ -235,12 +241,15 @@
                 setter({ ...currentData, studentId: val });
             };
 
-            const submitToForm = async (data, type) => {
+            // 【重點】使用隱藏表單提交大法
+            const submitToForm = (data, type) => {
                 setLoading(true);
                 let finalType = type;
+                
                 if (type === 'Member' || type === 'Purchase') {
                     finalType = `${type}_${identityType === 'ntu' ? 'NTU' : 'External'}`;
                 }
+                
                 if (type === 'Member' && data.date) {
                     finalType = `${finalType}_日期:${data.date}`;
                 }
@@ -250,27 +259,42 @@
                     phoneValue = "";
                 }
 
-                const formData = new FormData();
-                formData.append("entry.279954985", finalType || "");         
-                formData.append("entry.697528972", data.name || "");         
-                formData.append("entry.1784570342", phoneValue);             
-                formData.append("entry.1864980518", data.studentId || "");   
-                formData.append("entry.2007099999", data.department || "");  
-                formData.append("entry.219588854", data.last5 || "");        
+                // 建立一個真實的 HTML <form> 元素
+                const form = document.createElement('form');
+                form.action = FORM_URL;
+                form.method = 'POST';
+                // 將表單提交的目標指向畫面上隱藏的 iframe，這樣畫面就不會跳轉到 Google 的感謝頁面
+                form.target = 'hidden_iframe'; 
 
-                try {
-                    await fetch(FORM_URL, {
-                        method: "POST",
-                        mode: "no-cors",
-                        body: formData
-                    });
+                const entries = {
+                    "entry.279954985": finalType || "",
+                    "entry.697528972": data.name || "",
+                    "entry.1784570342": phoneValue,
+                    "entry.1864980518": data.studentId || "",
+                    "entry.2007099999": data.department || "",
+                    "entry.219588854": data.last5 || ""
+                };
+
+                // 將資料塞進這個隱藏的表單
+                for (const [key, value] of Object.entries(entries)) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+
+                document.body.appendChild(form);
+                
+                // 送出實體表單！這能繞過所有 fetch CORS 的限制
+                form.submit();
+
+                // 等待 1.5 秒讓表單傳輸，然後顯示成功畫面並清空資料
+                setTimeout(() => {
                     setLoading(false);
                     setPage('success');
-                } catch (error) {
-                    console.error(error);
-                    alert("連線發生錯誤，請檢查網路。");
-                    setLoading(false);
-                }
+                    document.body.removeChild(form);
+                }, 1500);
             };
 
             const resetAndGoHome = () => {
@@ -284,14 +308,55 @@
                 <div className="min-h-screen bg-gray-100 flex justify-center font-sans">
                     <div className="w-full max-w-md bg-white min-h-screen shadow-xl relative flex flex-col">
                         {page !== 'success' && <Header />}
+                        
                         <main className="flex-1">
                             {page === 'home' && <HomePage setPage={setPage} />}
-                            {page === 'member_select' && <IdentitySelectPage title="社員簽到" nextStep="member_form" setPage={setPage} setIdentityType={setIdentityType} />}
-                            {page === 'member_form' && <MemberFormPage setPage={setPage} identityType={identityType} memberData={memberData} setMemberData={setMemberData} loading={loading} submitToForm={submitToForm} handleStudentIdChange={handleStudentIdChange} />}
-                            {page === 'purchase_select' && <IdentitySelectPage title="購買課程" nextStep="purchase_form" setPage={setPage} setIdentityType={setIdentityType} />}
-                            {page === 'purchase_form' && <PurchaseFormPage setPage={setPage} identityType={identityType} purchaseData={purchaseData} setPurchaseData={setPurchaseData} loading={loading} submitToForm={submitToForm} handleStudentIdChange={handleStudentIdChange} />}
-                            {page === 'trial' && <TrialPage setPage={setPage} trialData={trialData} setTrialData={setTrialData} loading={loading} submitToForm={submitToForm} />}
-                            {page === 'success' && <SuccessPage setPage={setPage} onReset={resetAndGoHome} />}
+                            
+                            {page === 'member_select' && (
+                                <IdentitySelectPage title="社員簽到" nextStep="member_form" setPage={setPage} setIdentityType={setIdentityType} />
+                            )}
+                            
+                            {page === 'member_form' && (
+                                <MemberFormPage 
+                                    setPage={setPage} 
+                                    identityType={identityType} 
+                                    memberData={memberData} 
+                                    setMemberData={setMemberData} 
+                                    loading={loading} 
+                                    submitToForm={submitToForm}
+                                    handleStudentIdChange={handleStudentIdChange}
+                                />
+                            )}
+                            
+                            {page === 'purchase_select' && (
+                                <IdentitySelectPage title="購買課程" nextStep="purchase_form" setPage={setPage} setIdentityType={setIdentityType} />
+                            )}
+                            
+                            {page === 'purchase_form' && (
+                                <PurchaseFormPage 
+                                    setPage={setPage} 
+                                    identityType={identityType} 
+                                    purchaseData={purchaseData} 
+                                    setPurchaseData={setPurchaseData} 
+                                    loading={loading} 
+                                    submitToForm={submitToForm}
+                                    handleStudentIdChange={handleStudentIdChange}
+                                />
+                            )}
+                            
+                            {page === 'trial' && (
+                                <TrialPage 
+                                    setPage={setPage} 
+                                    trialData={trialData} 
+                                    setTrialData={setTrialData} 
+                                    loading={loading} 
+                                    submitToForm={submitToForm} 
+                                />
+                            )}
+                            
+                            {page === 'success' && (
+                                <SuccessPage setPage={setPage} onReset={resetAndGoHome} />
+                            )}
                         </main>
                     </div>
                 </div>
