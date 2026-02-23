@@ -214,14 +214,35 @@
             </div>
         );
 
+        // --- 修改過的 SuccessPage：加入 QR Code 與提示文字 ---
         const SuccessPage = ({ setPage, onReset }) => (
-            <div className="flex flex-col items-center justify-center h-full p-8 animate-scale-in text-center">
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6"><Check size={48} className="text-green-600" /></div>
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">操作成功！</h2>
-                <p className="text-gray-500 mb-8">您的資料已送出。</p>
-                <div className="bg-gray-50 p-4 rounded-lg w-full mb-8 border border-gray-200">
+            <div className="flex flex-col items-center justify-center h-full p-6 animate-scale-in text-center pb-20">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4"><Check size={40} className="text-green-600" /></div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">操作成功！</h2>
+                <p className="text-gray-500 mb-6">您的資料已送出。</p>
+                
+                {/* 新增的 LINE 群組 QR Code 區塊 */}
+                <div className="bg-white p-6 rounded-2xl w-full mb-6 border-2 border-green-500 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full bg-green-500 text-white text-xs font-bold py-1">重要通知</div>
+                    <h3 className="text-lg font-bold text-gray-800 mt-4 mb-2">台大拳擊社事項通知群</h3>
+                    <p className="text-sm text-gray-600 mb-4">請大家務必掃描下方 QR Code 加入群組！</p>
+                    
+                    {/* 這裡設定讀取相同資料夾底下的 qr-code.jpg，若抓不到圖片會顯示備用圖片提示 */}
+                    <img 
+                        src="./qr-code.jpg" 
+                        alt="LINE 群組 QR Code" 
+                        className="w-48 h-48 mx-auto object-contain border p-2 rounded-lg" 
+                        onError={(e) => {
+                            e.target.onerror = null; 
+                            e.target.src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
+                            e.target.title="如果您看到這個假 QR Code，請確認圖片已上傳至 GitHub 且命名為 qr-code.jpg";
+                        }} 
+                    />
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg w-full mb-6 border border-gray-200">
                     <p className="text-sm text-gray-500 mb-1">完成時間</p>
-                    <p className="font-mono text-xl font-bold text-gray-700">{new Date().toLocaleString('zh-TW', { hour12: false })}</p>
+                    <p className="font-mono text-lg font-bold text-gray-700">{new Date().toLocaleString('zh-TW', { hour12: false })}</p>
                 </div>
                 <button onClick={onReset} className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-300 transition-all">返回首頁</button>
             </div>
@@ -241,7 +262,6 @@
                 setter({ ...currentData, studentId: val });
             };
 
-            // 【重點】使用隱藏表單提交大法
             const submitToForm = (data, type) => {
                 setLoading(true);
                 let finalType = type;
@@ -259,11 +279,9 @@
                     phoneValue = "";
                 }
 
-                // 建立一個真實的 HTML <form> 元素
                 const form = document.createElement('form');
                 form.action = FORM_URL;
                 form.method = 'POST';
-                // 將表單提交的目標指向畫面上隱藏的 iframe，這樣畫面就不會跳轉到 Google 的感謝頁面
                 form.target = 'hidden_iframe'; 
 
                 const entries = {
@@ -275,7 +293,6 @@
                     "entry.219588854": data.last5 || ""
                 };
 
-                // 將資料塞進這個隱藏的表單
                 for (const [key, value] of Object.entries(entries)) {
                     const input = document.createElement('input');
                     input.type = 'hidden';
@@ -286,10 +303,8 @@
 
                 document.body.appendChild(form);
                 
-                // 送出實體表單！這能繞過所有 fetch CORS 的限制
                 form.submit();
 
-                // 等待 1.5 秒讓表單傳輸，然後顯示成功畫面並清空資料
                 setTimeout(() => {
                     setLoading(false);
                     setPage('success');
