@@ -23,7 +23,7 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <!-- 隱藏的 iframe -->
+    <!-- 隱藏的 iframe，用來吸收 Google 表單回傳的畫面 -->
     <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
     
     <div id="root"></div>
@@ -103,7 +103,6 @@
                 </button>
                 <div className="mt-4 text-center">
                     <p className="text-xs text-gray-400">© 2026 NTU Boxing Club</p>
-                    <p className="text-xs text-gray-300 mt-1">v7.2 Debug-Mode</p>
                 </div>
             </div>
         );
@@ -263,7 +262,6 @@
                 setLoading(true);
                 let finalType = `${type}_${identityType === 'ntu' ? 'NTU' : 'External'}`;
                 
-                // 如果是體驗課，就直接叫 Trial
                 if (type === 'Trial') finalType = 'Trial';
                 
                 if (type === 'Member' && data.date) {
@@ -271,7 +269,6 @@
                 }
 
                 let phoneValue = data.phone || "";
-                // 修正：如果是台大生，手機號碼留空
                 if (identityType === 'ntu') {
                     phoneValue = "";
                 }
@@ -284,18 +281,6 @@
                     "entry.2007099999": data.department || "",
                     "entry.219588854": data.last5 || ""
                 };
-
-                // --- 偵測器：把要送出的資料顯示在畫面上 ---
-                alert(
-                    "【除錯模式】即將送出以下資料：\n\n" +
-                    "類型：" + entries["entry.279954985"] + "\n" +
-                    "姓名：" + entries["entry.697528972"] + "\n" +
-                    "手機：" + entries["entry.1784570342"] + "\n" +
-                    "學號：" + entries["entry.1864980518"] + "\n" +
-                    "系級：" + entries["entry.2007099999"] + "\n" +
-                    "後五碼：" + entries["entry.219588854"] + "\n\n" +
-                    "※ 按下「確定」後才會真正送出。如果去後台沒看到資料，代表 Google 表單可能有限制未關閉！"
-                );
 
                 const form = document.createElement('form');
                 form.action = FORM_URL;
@@ -312,10 +297,10 @@
 
                 document.body.appendChild(form);
                 
-                // 真正送出表單
+                // 正式版：隱藏送出表單，不再彈出 Alert 視窗
                 form.submit();
 
-                // 等待 1.5 秒後跳到成功頁面
+                // 等待 1.5 秒後，自然跳轉到成功頁面
                 setTimeout(() => {
                     setLoading(false);
                     setPage('success');
