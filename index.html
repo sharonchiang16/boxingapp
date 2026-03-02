@@ -36,7 +36,7 @@
         // ==========================================
         const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSczkOvnq-sgwquckGdhvPryDrs-b1y4kWtZM0hYGcH5UgQKFg/formResponse";
         
-        // 這是您最新部署的 Apps Script 網址
+        // 這是您的 Apps Script 網址
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwYmVBUg31Beu75yPhXyrFL7NPuCWVv4Rpzj0GW3OCWXu7N_RTga6OeAI72GcU09M2Q/exec"; 
         // ==========================================
 
@@ -104,7 +104,7 @@
                     </div>
                 </button>
                 <div className="mt-4 text-center">
-                    <p className="text-xs text-gray-400">© 2026 NTU Boxing Club (v9.2)</p>
+                    <p className="text-xs text-gray-400">© 2026 NTU Boxing Club (v9.3)</p>
                 </div>
             </div>
         );
@@ -234,7 +234,7 @@
             </div>
         );
 
-        // 警告畫面 (紅色，未購課)
+        // 【更新修復】警告畫面 (紅色，未購課，修復破圖問題)
         const NotFoundPage = ({ onReset }) => (
             <div className="flex flex-col items-center justify-center h-full p-8 animate-scale-in text-center pb-20">
                 <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
@@ -242,15 +242,17 @@
                 </div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">點名失敗：未購買課程</h2>
                 
-                <div className="bg-white p-6 rounded-2xl w-full mb-6 border-2 border-red-500 shadow-sm relative text-left">
-                    <div className="absolute top-0 left-0 w-full bg-red-500 text-white text-xs font-bold py-1 text-center">系統提醒</div>
-                    <p className="text-gray-700 mt-4 mb-3 text-sm leading-relaxed font-semibold">
-                        您的打卡紀錄<span className="text-red-600">已被後台標記為「未購課」</span>，因為系統未在名單中找到您的資料。
-                    </p>
-                    <ul className="text-sm text-gray-600 list-disc pl-5 space-y-2">
-                        <li>請確認您是否已完成<span className="font-bold text-gray-800">「購買課程」</span>登記表單</li>
-                        <li>或是您的<span className="font-bold text-gray-800">「姓名」輸入有誤</span> (需與購課表單完全一致)</li>
-                    </ul>
+                <div className="bg-white rounded-2xl w-full mb-6 border-2 border-red-500 shadow-sm overflow-hidden text-left">
+                    <div className="w-full bg-red-500 text-white text-sm font-bold py-2 text-center">系統提醒</div>
+                    <div className="p-6">
+                        <p className="text-gray-700 mb-3 text-sm leading-relaxed font-semibold">
+                            您的打卡紀錄<span className="text-red-600">已被後台標記為「未購課」</span>，因為系統未在名單中找到您的資料。
+                        </p>
+                        <ul className="text-sm text-gray-600 list-disc pl-5 space-y-2">
+                            <li>請確認您是否已完成<span className="font-bold text-gray-800">「購買課程」</span>登記表單</li>
+                            <li>或是您的<span className="font-bold text-gray-800">「姓名」輸入有誤</span> (需與購課表單完全一致)</li>
+                        </ul>
+                    </div>
                 </div>
                 <button type="button" onClick={onReset} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900 transition-all shadow-md">確認並返回首頁</button>
             </div>
@@ -304,8 +306,12 @@
                     }
 
                     if (membersDb.length > 0) {
-                        // 檢查名字是否存在
-                        const allDbNames = membersDb.map(row => String(row['姓名'] || row['NAME'] || row['Name'] || row['name'] || '').trim()).filter(n => n);
+                        // 【升級】智慧檢查名字：尋找任何包含「姓名」或「name」的表頭欄位，防止空白格干擾
+                        const allDbNames = membersDb.map(row => {
+                            const nameKey = Object.keys(row).find(k => k.includes('姓名') || k.toLowerCase().includes('name'));
+                            return nameKey ? String(row[nameKey]).trim() : '';
+                        }).filter(n => n);
+                        
                         isValidMember = allDbNames.includes(data.name.trim());
                     } else {
                         // 資料庫全空也算失敗
@@ -333,7 +339,7 @@
                         
                         setTimeout(() => {
                             setLoading(false);
-                            // 根據狀態，平滑跳轉到對應頁面，不再跳 Alert 阻擋！
+                            // 根據狀態，平滑跳轉到對應頁面
                             if (isValidMember) {
                                 setPage('success');   
                             } else {
