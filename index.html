@@ -41,7 +41,6 @@
         const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSczkOvnq-sgwquckGdhvPryDrs-b1y4kWtZM0hYGcH5UgQKFg/formResponse";
 
         // 路線 B：社員簽到 & 讀取會員名單 (對接 Google Apps Script)
-        // ⚠️ 已經更新為您最新取得的 /exec 網址
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwYmVBUg31Beu75yPhXyrFL7NPuCWVv4Rpzj0GW3OCWXu7N_RTga6OeAI72GcU09M2Q/exec"; 
         
         // ==========================================
@@ -63,6 +62,8 @@
         const AlertCircle = ({size=18, className}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
         const Users = ({size=32}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
         const GraduationCap = ({size=32}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>;
+        // 新增一個紅色的叉叉圖示
+        const XCircle = ({size=24, className}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
 
         const Header = () => (
             <div className="bg-red-800 text-white p-4 shadow-md flex items-center justify-center sticky top-0 z-10 safe-top">
@@ -109,7 +110,7 @@
                     </div>
                 </button>
                 <div className="mt-4 text-center">
-                    <p className="text-xs text-gray-400">© 2026 NTU Boxing Club (v8.0 綁定版)</p>
+                    <p className="text-xs text-gray-400">© 2026 NTU Boxing Club (v8.1 嚴格防呆版)</p>
                 </div>
             </div>
         );
@@ -242,6 +243,28 @@
             </div>
         );
 
+        // 新增的：查無資料警告頁面
+        const NotFoundPage = ({ onReset }) => (
+            <div className="flex flex-col items-center justify-center h-full p-8 animate-scale-in text-center pb-20">
+                <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
+                    <XCircle size={48} className="text-red-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">查無購課紀錄</h2>
+                
+                <div className="bg-white p-6 rounded-2xl w-full mb-6 border-2 border-red-500 shadow-sm relative text-left">
+                    <div className="absolute top-0 left-0 w-full bg-red-500 text-white text-xs font-bold py-1 text-center">系統提醒</div>
+                    <p className="text-gray-700 mt-4 mb-3 text-sm leading-relaxed font-semibold">
+                        您的打卡紀錄<span className="text-red-600">已傳送至後台</span>，但系統未在「購課名單」中找到您的資料。
+                    </p>
+                    <ul className="text-sm text-gray-600 list-disc pl-5 space-y-2">
+                        <li>可能是<span className="font-bold text-gray-800">名字輸入有誤</span> (需與表單完全一致)</li>
+                        <li>或您尚未填寫<span className="font-bold text-gray-800">「購買課程」</span>登記表單</li>
+                    </ul>
+                </div>
+                <button type="button" onClick={onReset} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900 transition-all shadow-md">確認並返回首頁</button>
+            </div>
+        );
+
         function App() {
             const [page, setPage] = useState('home');
             const [loading, setLoading] = useState(false);
@@ -290,26 +313,27 @@
                         return;
                     }
 
-                    // ====== 會員名單實時比對驗證 ======
-                    if (isDbLoaded && membersDb.length > 0) {
+                    // ====== 🥊 彈性會員名單比對驗證 ======
+                    let isValidMember = true; // 預設先設為 True
+                    
+                    if (!isDbLoaded) {
+                        alert("【系統提示】會員資料庫尚未載入完成，請稍等幾秒後再試一次！\n(若持續無法載入，請重新整理網頁)");
+                        setLoading(false);
+                        return; // 終止發送
+                    }
+
+                    if (membersDb.length > 0) {
                         // 在撈出來的資料庫中找這名字
-                        const isValidMember = membersDb.some(row => {
-                            // 考量到 Google Form 表頭可能命名為 "姓名", "NAME", "Name"，做多重容錯
-                            const dbName = String(row['姓名'] || row['NAME'] || row['Name'] || '').trim();
+                        isValidMember = membersDb.some(row => {
+                            const dbName = String(row['姓名'] || row['NAME'] || row['Name'] || row['name'] || '').trim();
                             return dbName === data.name.trim();
                         });
-
-                        if (!isValidMember) {
-                            alert(`【查無會員資料】\n資料庫中找不到「${data.name}」的紀錄！\n\n1. 請確認您是否已完成「購買課程」或「我要體驗」登記。\n2. 確保您輸入的姓名與表單填寫完全相同。`);
-                            setLoading(false);
-                            return; // 終止發送
-                        }
-                    } else if (!isDbLoaded && !GOOGLE_SCRIPT_URL.includes("請將您的")) {
-                        console.warn("⚠️ 會員資料庫尚未載入完成，直接放行測試");
                     }
+                    
+                    // 這裡把原本的 return 拿掉，即使 isValidMember 是 false 也讓他發送紀錄！
                     // ==================================
 
-                    // 整理要送到 Apps Script 的 JSON 資料 (移除 date)
+                    // 整理要送到 Apps Script 的 JSON 資料
                     const payload = {
                         action: "member_checkin",
                         timestamp: new Date().toLocaleString('zh-TW'),
@@ -329,7 +353,12 @@
                         
                         setTimeout(() => {
                             setLoading(false);
-                            setPage('success');
+                            // 重點：發送完成後，根據驗證結果決定跳轉去哪裡
+                            if (isValidMember) {
+                                setPage('success');   // 真實社員：去綠色打勾畫面 (有 QR Code)
+                            } else {
+                                setPage('not_found'); // 幽靈/填錯的社員：去紅色警告畫面
+                            }
                         }, 1000);
                     } catch (err) {
                         console.error("Apps Script 發送失敗", err);
@@ -446,6 +475,10 @@
                             
                             {page === 'success' && (
                                 <SuccessPage setPage={setPage} onReset={resetAndGoHome} />
+                            )}
+
+                            {page === 'not_found' && (
+                                <NotFoundPage onReset={resetAndGoHome} />
                             )}
                         </main>
                     </div>
