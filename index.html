@@ -25,24 +25,19 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <!-- 隱藏的 iframe (給 Google Form 用的) -->
     <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
-    
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
 
         // ==========================================
-        // 🔑 兩大後台設定區
+        // 🔑 後台設定區
         // ==========================================
-        
-        // 路線 A：購課/體驗 (直連 Google Form)
         const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSczkOvnq-sgwquckGdhvPryDrs-b1y4kWtZM0hYGcH5UgQKFg/formResponse";
-
-        // 路線 B：社員簽到 & 讀取會員名單 (對接 Google Apps Script)
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwYmVBUg31Beu75yPhXyrFL7NPuCWVv4Rpzj0GW3OCWXu7N_RTga6OeAI72GcU09M2Q/exec"; 
         
+        // 這是您最新部署的 Apps Script 網址
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwYmVBUg31Beu75yPhXyrFL7NPuCWVv4Rpzj0GW3OCWXu7N_RTga6OeAI72GcU09M2Q/exec"; 
         // ==========================================
 
         const copyToClipboard = (text) => {
@@ -62,7 +57,6 @@
         const AlertCircle = ({size=18, className}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
         const Users = ({size=32}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
         const GraduationCap = ({size=32}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>;
-        // 新增一個紅色的叉叉圖示
         const XCircle = ({size=24, className}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
 
         const Header = () => (
@@ -110,7 +104,7 @@
                     </div>
                 </button>
                 <div className="mt-4 text-center">
-                    <p className="text-xs text-gray-400">© 2026 NTU Boxing Club (v8.1 嚴格防呆版)</p>
+                    <p className="text-xs text-gray-400">© 2026 NTU Boxing Club (v9.1 完美版)</p>
                 </div>
             </div>
         );
@@ -212,25 +206,22 @@
             </div>
         );
 
+        // 成功畫面 (綠色)
         const SuccessPage = ({ setPage, onReset }) => (
             <div className="flex flex-col items-center justify-center h-full p-6 animate-scale-in text-center pb-20">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4"><Check size={40} className="text-green-600" /></div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">操作成功！</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">點名成功！</h2>
                 <p className="text-gray-500 mb-6">您的資料已送出。</p>
                 
                 <div className="bg-white p-6 rounded-2xl w-full mb-6 border-2 border-green-500 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full bg-green-500 text-white text-xs font-bold py-1">重要通知</div>
                     <h3 className="text-lg font-bold text-gray-800 mt-4 mb-2">台大拳擊社事項通知群</h3>
                     <p className="text-sm text-gray-600 mb-4">請大家務必掃描下方 QR Code 加入群組！</p>
-                    
                     <img 
-                        src="./qr-code.jpg" 
-                        alt="LINE 群組 QR Code" 
-                        className="w-48 h-48 mx-auto object-contain border p-2 rounded-lg" 
+                        src="./qr-code.jpg" alt="LINE 群組 QR Code" className="w-48 h-48 mx-auto object-contain border p-2 rounded-lg" 
                         onError={(e) => {
                             e.target.onerror = null; 
                             e.target.src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg";
-                            e.target.title="如果您看到這個假 QR Code，請確認圖片已上傳至 GitHub 且命名為 qr-code.jpg";
                         }} 
                     />
                 </div>
@@ -243,22 +234,22 @@
             </div>
         );
 
-        // 新增的：查無資料警告頁面
+        // 警告畫面 (紅色，未購課)
         const NotFoundPage = ({ onReset }) => (
             <div className="flex flex-col items-center justify-center h-full p-8 animate-scale-in text-center pb-20">
                 <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
                     <XCircle size={48} className="text-red-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">查無購課紀錄</h2>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">點名失敗：未購買課程</h2>
                 
                 <div className="bg-white p-6 rounded-2xl w-full mb-6 border-2 border-red-500 shadow-sm relative text-left">
                     <div className="absolute top-0 left-0 w-full bg-red-500 text-white text-xs font-bold py-1 text-center">系統提醒</div>
                     <p className="text-gray-700 mt-4 mb-3 text-sm leading-relaxed font-semibold">
-                        您的打卡紀錄<span className="text-red-600">已傳送至後台</span>，但系統未在「購課名單」中找到您的資料。
+                        您的打卡紀錄<span className="text-red-600">已被後台標記為「未購課」</span>，因為系統未在名單中找到您的資料。
                     </p>
                     <ul className="text-sm text-gray-600 list-disc pl-5 space-y-2">
-                        <li>可能是<span className="font-bold text-gray-800">名字輸入有誤</span> (需與表單完全一致)</li>
-                        <li>或您尚未填寫<span className="font-bold text-gray-800">「購買課程」</span>登記表單</li>
+                        <li>請確認您是否已完成<span className="font-bold text-gray-800">「購買課程」</span>登記表單</li>
+                        <li>或是您的<span className="font-bold text-gray-800">「姓名」輸入有誤</span> (需與購課表單完全一致)</li>
                     </ul>
                 </div>
                 <button type="button" onClick={onReset} className="w-full bg-red-800 text-white py-3 rounded-xl font-bold hover:bg-red-900 transition-all shadow-md">確認並返回首頁</button>
@@ -274,12 +265,10 @@
             const [purchaseData, setPurchaseData] = useState({ name: '', studentId: '', department: '', phone: '', last5: '' });
             const [trialData, setTrialData] = useState({ name: '', phone: '', last5: '' });
 
-            // ======= 讀取 Google 資料庫 =======
             const [membersDb, setMembersDb] = useState([]);
             const [isDbLoaded, setIsDbLoaded] = useState(false);
 
             useEffect(() => {
-                // 網頁載入時，發送 GET 請求去抓會員名單
                 if (GOOGLE_SCRIPT_URL && !GOOGLE_SCRIPT_URL.includes("請將您的")) {
                     fetch(GOOGLE_SCRIPT_URL)
                         .then(res => res.json())
@@ -293,7 +282,6 @@
                         .catch(err => console.error("讀取會員庫失敗:", err));
                 }
             }, []);
-            // ==================================
 
             const handleStudentIdChange = (e, setter, currentData) => {
                 const val = e.target.value.toUpperCase();
@@ -304,43 +292,35 @@
                 setLoading(true);
                 
                 // ------------------------------------------
-                // 路線 A：社員簽到 -> 送到 Google Apps Script
+                // 路線 A：社員簽到 (寫入 Apps Script + 記錄狀態)
                 // ------------------------------------------
                 if (type === 'Member') {
-                    if (GOOGLE_SCRIPT_URL.includes("請將您的_Apps_Script_網址貼在這裡")) {
-                        alert("【開發提示】\n您尚未填寫 Google Apps Script 的網址！\n請先依照教學建立 Apps Script。");
-                        setLoading(false);
-                        return;
-                    }
-
-                    // ====== 🥊 彈性會員名單比對驗證 ======
-                    let isValidMember = true; // 預設先設為 True
+                    let isValidMember = true; 
                     
                     if (!isDbLoaded) {
                         alert("【系統提示】會員資料庫尚未載入完成，請稍等幾秒後再試一次！\n(若持續無法載入，請重新整理網頁)");
                         setLoading(false);
-                        return; // 終止發送
+                        return; 
                     }
 
                     if (membersDb.length > 0) {
-                        // 在撈出來的資料庫中找這名字
-                        isValidMember = membersDb.some(row => {
-                            const dbName = String(row['姓名'] || row['NAME'] || row['Name'] || row['name'] || '').trim();
-                            return dbName === data.name.trim();
-                        });
+                        // 檢查名字是否存在
+                        const allDbNames = membersDb.map(row => String(row['姓名'] || row['NAME'] || row['Name'] || row['name'] || '').trim()).filter(n => n);
+                        isValidMember = allDbNames.includes(data.name.trim());
+                    } else {
+                        // 資料庫全空也算失敗
+                        isValidMember = false;
                     }
-                    
-                    // 這裡把原本的 return 拿掉，即使 isValidMember 是 false 也讓他發送紀錄！
-                    // ==================================
 
-                    // 整理要送到 Apps Script 的 JSON 資料
+                    // 整理要送到 Apps Script 的 JSON 資料，加入 status 欄位
                     const payload = {
                         action: "member_checkin",
                         timestamp: new Date().toLocaleString('zh-TW'),
                         identity: identityType === 'ntu' ? 'NTU' : 'External',
                         studentId: identityType === 'ntu' ? data.studentId : '',
                         phone: identityType === 'external' ? data.phone : '',
-                        name: data.name
+                        name: data.name,
+                        status: isValidMember ? "🟢 成功" : "🔴 未購課/名字錯" // 【核心】回傳狀態給後台
                     };
 
                     try {
@@ -353,11 +333,11 @@
                         
                         setTimeout(() => {
                             setLoading(false);
-                            // 重點：發送完成後，根據驗證結果決定跳轉去哪裡
+                            // 根據狀態，平滑跳轉到對應頁面，不再跳 Alert 阻擋！
                             if (isValidMember) {
-                                setPage('success');   // 真實社員：去綠色打勾畫面 (有 QR Code)
+                                setPage('success');   
                             } else {
-                                setPage('not_found'); // 幽靈/填錯的社員：去紅色警告畫面
+                                setPage('not_found'); 
                             }
                         }, 1000);
                     } catch (err) {
@@ -367,7 +347,7 @@
                     }
 
                 // ------------------------------------------
-                // 路線 B：購買課程 / 體驗課 -> 送到 Google Form
+                // 路線 B：購買課程 / 體驗課 (對接 Google Form)
                 // ------------------------------------------
                 } else {
                     let finalType = type;
@@ -405,7 +385,6 @@
                     }
 
                     document.body.appendChild(form);
-                    
                     form.submit();
 
                     setTimeout(() => {
@@ -426,60 +405,18 @@
             return (
                 <div className="min-h-screen bg-gray-100 flex justify-center font-sans">
                     <div className="w-full max-w-md bg-white min-h-screen shadow-xl relative flex flex-col">
-                        {page !== 'success' && <Header />}
+                        {page !== 'success' && page !== 'not_found' && <Header />}
                         
                         <main className="flex-1">
                             {page === 'home' && <HomePage setPage={setPage} />}
+                            {page === 'member_select' && <IdentitySelectPage title="社員簽到" nextStep="member_form" setPage={setPage} setIdentityType={setIdentityType} />}
+                            {page === 'member_form' && <MemberFormPage setPage={setPage} identityType={identityType} memberData={memberData} setMemberData={setMemberData} loading={loading} submitToForm={submitToForm} handleStudentIdChange={handleStudentIdChange} />}
+                            {page === 'purchase_select' && <IdentitySelectPage title="購買課程" nextStep="purchase_form" setPage={setPage} setIdentityType={setIdentityType} />}
+                            {page === 'purchase_form' && <PurchaseFormPage setPage={setPage} identityType={identityType} purchaseData={purchaseData} setPurchaseData={setPurchaseData} loading={loading} submitToForm={submitToForm} handleStudentIdChange={handleStudentIdChange} />}
+                            {page === 'trial' && <TrialPage setPage={setPage} trialData={trialData} setTrialData={setTrialData} loading={loading} submitToForm={submitToForm} />}
                             
-                            {page === 'member_select' && (
-                                <IdentitySelectPage title="社員簽到" nextStep="member_form" setPage={setPage} setIdentityType={setIdentityType} />
-                            )}
-                            
-                            {page === 'member_form' && (
-                                <MemberFormPage 
-                                    setPage={setPage} 
-                                    identityType={identityType} 
-                                    memberData={memberData} 
-                                    setMemberData={setMemberData} 
-                                    loading={loading} 
-                                    submitToForm={submitToForm}
-                                    handleStudentIdChange={handleStudentIdChange}
-                                />
-                            )}
-                            
-                            {page === 'purchase_select' && (
-                                <IdentitySelectPage title="購買課程" nextStep="purchase_form" setPage={setPage} setIdentityType={setIdentityType} />
-                            )}
-                            
-                            {page === 'purchase_form' && (
-                                <PurchaseFormPage 
-                                    setPage={setPage} 
-                                    identityType={identityType} 
-                                    purchaseData={purchaseData} 
-                                    setPurchaseData={setPurchaseData} 
-                                    loading={loading} 
-                                    submitToForm={submitToForm}
-                                    handleStudentIdChange={handleStudentIdChange}
-                                />
-                            )}
-                            
-                            {page === 'trial' && (
-                                <TrialPage 
-                                    setPage={setPage} 
-                                    trialData={trialData} 
-                                    setTrialData={setTrialData} 
-                                    loading={loading} 
-                                    submitToForm={submitToForm} 
-                                />
-                            )}
-                            
-                            {page === 'success' && (
-                                <SuccessPage setPage={setPage} onReset={resetAndGoHome} />
-                            )}
-
-                            {page === 'not_found' && (
-                                <NotFoundPage onReset={resetAndGoHome} />
-                            )}
+                            {page === 'success' && <SuccessPage setPage={setPage} onReset={resetAndGoHome} />}
+                            {page === 'not_found' && <NotFoundPage onReset={resetAndGoHome} />}
                         </main>
                     </div>
                 </div>
