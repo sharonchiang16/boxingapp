@@ -27,14 +27,276 @@
         // 1. Google Form 接收網址
         const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdeKkt0Blpf8w3amhAQgsW0g0rVDalJnvAnty7YZjHhBEubmg/formResponse";
         
-        // 2. CSV 網址
+        // 2.  CSV 網址
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSmDZvNljjVPGK6LfDiDhNJ75Sxpj1lO0xZrhHGkKOfKAnWbvv--8bL-ogQoxwpMI1nvmtHYHFLAqGZ/pub?gid=0&single=true&output=csv";
 
-        // 3. 欄位代碼 
+        // 3. 欄位代碼
         const ENTRY_TYPE = "entry.1216091389";    // 報名類型
         const ENTRY_NAME = "entry.58929967";      // 姓名
         const ENTRY_PHONE = "entry.460540765";    // 手機
         const ENTRY_STUDENT = "entry.1493738841"; // 學號
+        const ENTRY_MONEY = "entry.1112013575";   // 匯款後五碼
+        
+        // ==========================================
+
+        const normalizeString = (str) => String(str || '').trim().toUpperCase();
+
+        const Header = () => (
+            <div className="bg-red-800 text-white p-4 shadow-md flex items-center justify-center sticky top-0 z-10">
+                <h1 className="text-xl font-bold tracking-wider">NTU BOXING</h1>
+            </div>
+        );
+
+        // --- 顯示條碼的獨立檢視元件 ---
+        const BarcodeDisplayView = ({ codeToDisplay, onBack }) => {
+            useEffect(() => {
+                if (codeToDisplay) {
+                    JsBarcode("#barcode", codeToDisplay, {
+                        format: "CODE128", lineColor: "#000", width: 3, height: 100, 
+                        displayValue: false, // 隱藏下方數字
+                        margin: 10
+                    });
+                }
+            }, [codeToDisplay]);
+
+            return (
+                <div className="p-6 animate-fade-in flex flex-col items-center bg-white min-h-screen">
+                    {onBack && (
+                        <button onClick={onBack} className="self-start text-gray-500 mb-6 hover:text-red-800 font-bold">← 返回首頁</button>
+                    )}
+                    <div className="w-full text-left mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">您的專屬入場條碼</h2>
+                        <p className="text-sm text-gray-500">識別碼：<span className="font-mono font-bold text-slate-800">{codeToDisplay}</span></p>
+                    </div>
+
+                    <div className="w-full flex flex-col items-center bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-300">
+                        <p className="text-red-800 font-bold mb-4">🎉 請將此畫面截圖保存！</p>
+                        <div className="bg-white p-4 rounded-xl shadow-sm mb-4"><svg id="barcode"></svg></div>
+                        <p className="text-sm text-gray-500 text-center mb-6">入場時出示此條碼，給幹部掃描即可。</p>
+                        
+                        {/* 社群連結區域 */}
+                        <div className="w-full bg-blue-50 border border-blue-200 p-4 rounded-xl mb-6 text-center">
+                            <p className="font-bold text-blue-800 mb-1">加入社員私人群組</p>
+                            <p className="text-xs text-blue-700 mb-3">請務必加入以獲取社課最新資訊</p>
+                            <a href="#" target="_blank" rel="noopener noreferrer" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-full font-bold text-sm shadow hover:bg-blue-700">點擊加入 LINE 群組</a>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 獲取純條碼頁面 (手動查詢) ---
+        const BarcodeGenPage = ({ setPage, membersDb }) => {
+            const [inputValue, setInputValue] = useState('');
+            const [searchedCode, setSearchedCode] = useState(null);
+
+            const handleGenerate = (e) => {
+                e.preventDefault();
+                if (!inputValue) return;
+                const cleanCode = normalizeString(inputValue);
+
+                // 在 CSV 名單中尋找學號或手機
+                const foundMember = membersDb.find(row => {
+                    const sid = normalizeString(row.studentId);
+                    const phone = normalizeString(row.phone);
+                    return (sid && sid.includes(cleanCode)) || (phone && phone.includes(cleanCode));
+                });
+
+                if (!foundMember) {
+                    alert("【系統提醒】查無購課紀錄！\n\n系統找不到此學號/手機。請確認您是否已完成「購買課程」登記，或輸入是否有誤。");
+                    return;
+                }
+                setSearchedCode(cleanCode);
+            };
+
+            if (searchedCode) {
+                return (
+                    <div className="bg-white min-h-screen flex flex-col">
+                        <div className="p-6 pb-0">
+                            <button onClick={() => setSearchedCode(null)} className="text-gray-500 font-bold hover:text-red-800">← 重新查詢</button>
+                        </div>
+                        <BarcodeDisplayView codeToDisplay={searchedCode} onBack={() => setPage('home')} />
+                    </div>
+                );
+            }
+
+            return (
+                <div className="p-6 animate-fade-in flex flex-col items-center bg-white min-h-screen">
+                    <button onClick={() => setPage('home')} className="self-start text-gray-500 mb-6 hover:text-red-800 font-bold">← 返回首頁</button>
+                    <div className="w-full text-left">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">獲取入場條碼</h2>
+                        <p className="text-sm text-gray-500 mb-8">請輸入學號 (台大生) 或手機號碼 (校外/體驗)</p>
+                    </div>
+                    
+                    <form onSubmit={handleGenerate} className="w-full flex flex-col gap-4">
+                        <input 
+                            type="text" required placeholder="例如：B13504099 或 0912345678" 
+                            className="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-center text-lg uppercase tracking-wider focus:border-red-800 outline-none"
+                            value={inputValue} onChange={(e) => setInputValue(e.target.value)} 
+                        />
+                        <button type="submit" className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg shadow-md hover:bg-slate-900 active:scale-95 transition-all">驗證並產生條碼</button>
+                    </form>
+                </div>
+            );
+        };
+
+        // --- 購買課程表單 ---
+        const PurchaseForms = ({ setPage, purchaseData, setPurchaseData, loading, submitToForm }) => {
+            const [purchaseType, setPurchaseType] = useState(null); 
+
+            if (!purchaseType) {
+                return (
+                    <div className="p-6 animate-fade-in bg-white min-h-screen">
+                        <button onClick={() => setPage('home')} className="text-gray-500 mb-6 font-bold">← 返回</button>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">購買課程</h2>
+                        <p className="text-gray-500 mb-6">請選擇您的報名身份</p>
+                        <div className="flex flex-col gap-4">
+                            <button onClick={() => setPurchaseType('台大生')} className="bg-white border-2 border-red-800 text-red-800 rounded-2xl p-6 shadow-sm active:scale-95 transition-all text-left">
+                                <span className="block text-xl font-bold">台大教職員工生</span>
+                                <span className="text-xs opacity-75 font-bold">$3000</span>
+                            </button>
+                            <button onClick={() => setPurchaseType('校外人士')} className="bg-white border-2 border-slate-600 text-slate-800 rounded-2xl p-6 shadow-sm active:scale-95 transition-all text-left">
+                                <span className="block text-xl font-bold">校外人士</span>
+                                <span className="text-xs opacity-75 font-bold">$3500</span>
+                            </button>
+                            <button onClick={() => setPurchaseType('單堂體驗')} className="bg-slate-800 text-white rounded-2xl p-6 shadow-sm active:scale-95 transition-all text-left">
+                                <span className="block text-xl font-bold">單堂體驗課</span>
+                                <span className="text-xs opacity-75 font-bold">$500</span>
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="p-6 animate-fade-in bg-white min-h-screen">
+                    <button onClick={() => setPurchaseType(null)} className="text-gray-500 mb-6">← 重新選擇身份</button>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-6">{purchaseType} 報名表</h2>
+                    
+                    <form onSubmit={(e) => { e.preventDefault(); submitToForm(purchaseData, purchaseType); }} className="flex flex-col gap-4">
+                        <div><label className="block text-sm text-gray-700 mb-1">姓名</label><input type="text" required className="w-full p-3 border rounded-lg outline-none focus:border-slate-500" value={purchaseData.name} onChange={(e) => setPurchaseData({...purchaseData, name: e.target.value})} /></div>
+                        
+                        {/* 非台大生與體驗需要填手機 */}
+                        {purchaseType !== '台大生' && (
+                            <div><label className="block text-sm text-gray-700 mb-1">手機號碼</label><input type="tel" required className="w-full p-3 border rounded-lg outline-none focus:border-slate-500" value={purchaseData.phone} onChange={(e) => setPurchaseData({...purchaseData, phone: e.target.value})} /></div>
+                        )}
+                        
+                        {/* 台大生需要填學號（不需手機） */}
+                        {purchaseType === '台大生' && (
+                            <div><label className="block text-sm text-gray-700 mb-1">學號</label><input type="text" required className="w-full p-3 border rounded-lg outline-none uppercase focus:border-slate-500" value={purchaseData.studentId} onChange={(e) => setPurchaseData({...purchaseData, studentId: e.target.value.toUpperCase()})} /></div>
+                        )}
+                        
+                        <div><label className="block text-sm text-gray-700 mb-1">匯款後五碼</label><input type="text" required maxLength={5} className="w-full p-3 border rounded-lg font-mono outline-none focus:border-slate-500" value={purchaseData.last5} onChange={(e) => setPurchaseData({...purchaseData, last5: e.target.value})} /></div>
+                        <button type="submit" disabled={loading} className="mt-4 w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg active:scale-95 transition-all disabled:opacity-50">{loading ? "提交中..." : "送出報名"}</button>
+                    </form>
+                </div>
+            );
+        };
+
+        // --- 主程式 ---
+        function App() {
+            const [page, setPage] = useState('home');
+            const [loading, setLoading] = useState(false);
+            const [purchaseData, setPurchaseData] = useState({ name: '', studentId: '', phone: '', last5: '' });
+            const [membersDb, setMembersDb] = useState([]);
+            const [successCode, setSuccessCode] = useState('');
+
+            // 讀取 CSV 資料庫 
+            const fetchDatabase = useCallback(async () => {
+                if(!CSV_URL.includes("pub?gid")) return;
+                try {
+                    const res = await fetch(CSV_URL);
+                    const csvText = await res.text();
+                    
+                    const rows = csvText.split('\n');
+                    if (rows.length > 1) {
+                        const parsedData = rows.slice(1).map(row => {
+                            const cols = row.split(','); 
+                            return {
+                                type: cols[1] || '',
+                                name: cols[2] || '',
+                                phone: cols[3] || '',
+                                studentId: cols[4] || ''
+                            };
+                        });
+                        setMembersDb(parsedData);
+                    }
+                } catch (err) { console.error("CSV讀取失敗", err); }
+            }, []);
+
+            useEffect(() => { fetchDatabase(); }, [fetchDatabase]);
+
+            // 送出到 Google Form
+            const submitToForm = async (data, type) => {
+                setLoading(true);
+
+                // 決定要產生的條碼是學號還是手機
+                const code = type === '台大生' ? data.studentId : data.phone;
+
+                const entries = {
+                    [ENTRY_TYPE]: type,
+                    [ENTRY_NAME]: data.name || "",
+                    [ENTRY_PHONE]: data.phone || "",
+                    [ENTRY_STUDENT]: data.studentId || "",
+                    [ENTRY_MONEY]: data.last5 || ""
+                };
+                
+                const form = document.createElement('form');
+                form.action = FORM_URL; form.method = 'POST'; form.target = 'hidden_iframe'; 
+                for (const [key, value] of Object.entries(entries)) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden'; input.name = key; input.value = value;
+                    form.appendChild(input);
+                }
+                document.body.appendChild(form);
+                form.submit();
+
+                // 2秒後視為成功，直接進入條碼畫面
+                setTimeout(() => {
+                    setLoading(false); 
+                    setSuccessCode(code);
+                    setPage('success_barcode'); 
+                    document.body.removeChild(form);
+                    setPurchaseData({ name: '', studentId: '', phone: '', last5: '' });
+                    fetchDatabase(); 
+                }, 2000);
+            };
+
+            return (
+                <div className="w-full max-w-md mx-auto bg-white min-h-screen shadow-lg relative flex flex-col">
+                    <Header />
+                    <main className="flex-1">
+                        {page === 'home' && (
+                            <div className="flex flex-col gap-4 p-6 animate-fade-in mt-4">
+                                <div className="text-center mb-6">
+                                    <div className="text-4xl mb-2">🥊</div>
+                                    <p className="text-gray-800 font-black text-2xl tracking-wider">台大拳擊社</p>
+                                    <p className="text-sm text-gray-500">學員報名與條碼系統</p>
+                                </div>
+                                <button onClick={() => setPage('purchase')} className="w-full bg-slate-100 border-2 border-slate-600 text-slate-800 p-5 rounded-2xl shadow-sm active:scale-95 transition-all text-left">
+                                    <span className="block text-xl font-bold">1. 購買課程</span><span className="text-xs opacity-75">填寫報名與匯款資料</span>
+                                </button>
+                                <button onClick={() => setPage('barcode')} className="w-full bg-white border-2 border-red-800 text-red-800 p-5 rounded-2xl shadow-sm active:scale-95 transition-all text-left">
+                                    <span className="block text-xl font-bold">2. 獲取入場條碼</span><span className="text-xs opacity-75">忘記條碼可由此找回</span>
+                                </button>
+                            </div>
+                        )}
+                        {page === 'purchase' && <PurchaseForms setPage={setPage} purchaseData={purchaseData} setPurchaseData={setPurchaseData} loading={loading} submitToForm={submitToForm} />}
+                        {page === 'barcode' && <BarcodeGenPage setPage={setPage} membersDb={membersDb} />}
+                        {page === 'success_barcode' && (
+                            <div className="flex flex-col bg-white min-h-full">
+                                <BarcodeDisplayView codeToDisplay={successCode} onBack={() => setPage('home')} />
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>        const ENTRY_STUDENT = "entry.1493738841"; // 學號
         const ENTRY_MONEY = "entry.1112013575";   // 匯款後五碼
         
         // ==========================================
