@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台大拳擊社 - 幹部快速點名系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col items-center justify-start p-4 sm:p-8">
+
+    <!-- 主容器 -->
+    <div class="w-full max-w-2xl bg-white border border-gray-200 shadow-xl rounded-3xl p-6 sm:p-8 space-y-6">
+        
+        <!-- 頂部標題與今日累計人數 -->
+        <div class="flex flex-col sm:flex-row items-center justify-between border-b border-gray-200 pb-6 gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900 flex items-center gap-3">
+                    <span class="inline-block w-3 h-8 bg-red-800 rounded-full"></span>
+                    幹部快速點名系統
+                </h1>
+                <p class="text-sm text-gray-500 mt-1">請使用掃描槍對準學員條碼，或直接手動輸入後按下 Enter</p>
+            </div>
+            <!-- 當日累計人數卡片 -->
+            <div class="bg-gray-50 border border-gray-200 px-5 py-3 rounded-2xl flex items-center gap-4 shadow-sm">
+                <div>
+                    <div class="text-xs text-gray-500 font-medium">今日累計簽到</div>
+                    <div id="todayCount" class="text-2xl font-black text-red-800">0 人</div>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-red-800/10 border border-red-800/20 flex items-center justify-center text-red-800">
+                    👥
+                </div>
+            </div>
+        </div>
+
+        <!-- 條碼掃描 / 手動輸入長方形方框區域 -->
+        <div class="relative">
+            <label for="barcodeInput" class="block text-sm font-semibold text-gray-700 mb-2">
+                ⚡ 掃描槍輸入槽（隨時可點擊手動輸入）
+            </label>
+            <div class="relative flex items-center">
+                <input 
+                    type="text" 
+                    id="barcodeInput" 
+                    autocomplete="off" 
+                    placeholder="請掃描條碼或手動輸入手機/學號後按 Enter..." 
+                    class="w-full bg-white border-2 border-gray-300 focus:border-red-800 focus:ring-4 focus:ring-red-800/20 text-gray-900 placeholder-gray-400 text-lg px-5 py-4 rounded-2xl outline-none transition-all shadow-inner"
+                >
+                <div class="absolute right-4 text-gray-400 text-sm pointer-events-none bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200">
+                    Ready
+                </div>
+            </div>
+        </div>
+
+        <!-- 狀態與提示訊息 -->
+        <div id="statusMessage" class="hidden p-4 rounded-2xl text-sm font-medium transition-all"></div>
+
+        <!-- 刷卡成功後顯示的學員資訊卡片 -->
+        <div id="resultCard" class="hidden bg-gray-50 border border-gray-200 rounded-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <span id="resultBadge" class="px-3 py-1 text-xs font-bold rounded-full"></span>
+                <span id="scanTime" class="text-xs text-gray-500"></span>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="text-xs text-gray-500 font-medium">學員姓名</div>
+                    <div id="resName" class="text-lg font-bold text-gray-900 mt-0.5">-</div>
+                </div>
+                <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="text-xs text-gray-500 font-medium">身分 / 方案</div>
+                    <div id="resType" class="text-lg font-bold text-gray-900 mt-0.5">-</div>
+                </div>
+                <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
+                    <div class="text-xs text-gray-500 font-medium">參與紀錄</div>
+                    <div id="resCount" class="text-lg font-bold text-red-800 mt-0.5">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系統操作說明 -->
+        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs text-gray-600 space-y-1">
+            <p class="font-semibold text-gray-700">💡 幹部操作小叮嚀：</p>
+            <p>1. 點擊輸入框即可手動輸入，若使用掃描槍，游標會自動保持在框內等待。</p>
+            <p>2. 系統會自動比對會員資料庫與點名歷程，計算並顯示這是該學員本學期第幾次出席。</p>
+            <p>3. 打卡成功後資料將自動寫入 Google 表單後台並更新當日總人數。</p>
+        </div>
+
+    </div>
+
+    <!-- JavaScript 邏輯設定 -->
+    <script>
+        // ==========================================
+        // 🛠️ 幹部端設定區 (請在此填入您的實際網址與 ID)
+        // ==========================================
+        const MEMBERS_CSV_URL = "您的購課會員表單發布CSV網址";
+        const LOGS_CSV_URL = "您的點名紀錄表單發布CSV網址";
+        const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/您的表單ID/formResponse";
+        
+        // Google Form 欄位對應代碼 (Entry ID)
+        const FORM_FIELDS = {
+            code: "entry.111111111", // 識別碼
+            name: "entry.222222222", // 姓名
+            type: "entry.333333333", // 身分
+            time: "entry.444444444"  // 點名時間
+        };
+        // ==========================================
+
+        const inputField = document.getElementById('barcodeInput');
+        const statusMessage = document.getElementById('statusMessage');
+        const resultCard = document.getElementById('resultCard');
+        const todayCountEl = document.getElementById('todayCount');
+
+        // 確保網頁載入後，輸入框永遠保持焦點（讓掃描槍隨時能用）
+        window.onload = () => {
+            inputField.focus();
+            loadTodayCount();
+        };
+
+        document.addEventListener('click', () => {
+            inputField.focus();
+        });
+
+        // 監聽掃描槍或手動輸入的 Enter 鍵
+        inputField.addEventListener('keypress', async function (e) {
+            if (e.key === 'Enter') {
+                const code = inputField.value.trim();
+                inputField.value = ''; // 清空輸入框準備下次掃描
+                if (!code) return;
+                await handleCheckIn(code);
+            }
+        });
+
+        // 簡易 CSV 解析器
+        function parseCSV(text) {
+            let lines = text.split("\n");
+            let result = [];
+            let headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ''));
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                let currentLine = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                let obj = {};
+                for (let j = 0; j < headers.length; j++) {
+                    let val = currentLine[j] ? currentLine[j].trim().replace(/^"|"$/g, '') : "";
+                    obj[headers[j]] = val;
+                }
+                result.push(obj);
+            }
+            return result;
+        }
+
+        // 載入今日累計人數
+        async function loadTodayCount() {
+            if (!LOGS_CSV_URL.includes("http")) return;
+            try {
+                const res = await fetch(LOGS_CSV_URL + "?t=" + new Date().getTime());
+                const text = await res.text();
+                const logs = parseCSV(text);
+                
+                const todayStr = new Date().toLocaleDateString();
+                const todayLogs = logs.filter(row => {
+                    const timeVal = row['點名時間'] || Object.values(row)[3] || "";
+                    return timeVal.includes(todayStr) || timeVal.startsWith(new Date().toISOString().split('T')[0]);
+                });
+                
+                todayCountEl.innerText = todayLogs.length + " 人";
+            } catch (err) {
+                console.error("無法取得今日累計人數", err);
+            }
+        }
+
+        // 執行點名比對與回傳
+        async function handleCheckIn(code) {
+            showStatus("正在驗證學員身分...", "info");
+            
+            try {
+                // 1. 抓取會員資料庫與歷史點名紀錄
+                const [memRes, logRes] = await Promise.all([
+                    fetch(MEMBERS_CSV_URL + "?t=" + new Date().getTime()),
+                    fetch(LOGS_CSV_URL + "?t=" + new Date().getTime())
+                ]);
+
+                const memText = await memRes.text();
+                const logText = await logRes.text();
+                
+                const members = parseCSV(memText);
+                const logs = parseCSV(logText);
+
+                // 2. 在會員資料中尋找匹配的手機或學號
+                const matchedMember = members.find(m => 
+                    (m['手機'] && m['手機'].includes(code)) || 
+                    (m['學號'] && m['學號'].toLowerCase() === code.toLowerCase()) ||
+                    Object.values(m).includes(code)
+                );
+
+                if (!matchedMember) {
+                    showStatus(`❌ 查無此識別碼 (${code})，請確認是否購課或重新輸入！`, "error");
+                    resultCard.classList.add('hidden');
+                    return;
+                }
+
+                // 提取學員資料
+                const name = matchedMember['姓名'] || matchedMember['學員姓名'] || "未知姓名";
+                const type = matchedMember['身分'] || matchedMember['身分別'] || "一般學員";
+
+                // 3. 計算過去點名次數
+                const userLogs = logs.filter(l => {
+                    const rowCode = l['識別碼'] || Object.values(l)[0] || "";
+                    return rowCode === code;
+                });
+                const visitCount = userLogs.length + 1; // 加上這次
+
+                const nowTime = new Date().toLocaleString();
+
+                // 4. 背景安靜送出到 Google 表單
+                const formData = new URLSearchParams();
+                formData.append(FORM_FIELDS.code, code);
+                formData.append(FORM_FIELDS.name, name);
+                formData.append(FORM_FIELDS.type, type);
+                formData.append(FORM_FIELDS.time, nowTime);
+
+                fetch(CHECKIN_FORM_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: formData
+                }).catch(e => console.log("Form submit note:", e));
+
+                // 5. 畫面呈現成功卡片
+                showStatus(`✅ 點名成功！歡迎 ${name}`, "success");
+                
+                document.getElementById('resName').innerText = name;
+                document.getElementById('resType').innerText = type;
+                document.getElementById('resCount').innerText = `累積第 ${visitCount} 次`;
+                document.getElementById('scanTime').innerText = `簽到時間：${nowTime}`;
+                
+                const badge = document.getElementById('resultBadge');
+                badge.className = "px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200";
+                badge.innerText = "打卡成功";
+
+                resultCard.classList.remove('hidden');
+                
+                // 更新今日人數
+                loadTodayCount();
+
+            } catch (err) {
+                console.error(err);
+                showStatus("⚠️ 讀取或連線發生錯誤，請檢查網路與網址設定。", "error");
+            }
+        }
+
+        function showStatus(msg, type) {
+            statusMessage.classList.remove('hidden', 'bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/30', 'bg-rose-500/10', 'text-rose-400', 'border-rose-500/30', 'bg-indigo-500/10', 'text-indigo-400', 'border-indigo-500/30', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-rose-50', 'text-rose-800', 'border-rose-200', 'bg-gray-50', 'text-gray-800', 'border-gray-200');
+            
+            if (type === 'success') {
+                statusMessage.classList.add('bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
+            } else if (type === 'error') {
+                statusMessage.classList.add('bg-rose-50', 'text-rose-800', 'border', 'border-rose-200');
+            } else {
+                statusMessage.classList.add('bg-gray-50', 'text-gray-800', 'border', 'border-gray-200');
+            }
+            statusMessage.innerText = msg;
+        }
+    </script>
+</body>
+</html>
