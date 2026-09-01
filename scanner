@@ -96,16 +96,16 @@
         // ==========================================
         // 🛠️ 幹部端設定區 (請在此填入您的實際網址與 ID)
         // ==========================================
-        const MEMBERS_CSV_URL = "您的購課會員表單發布CSV網址";
-        const LOGS_CSV_URL = "您的點名紀錄表單發布CSV網址";
-        const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/您的表單ID/formResponse";
+        const MEMBERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTE8wQ1TZ4oQC4fiX2LrCAXBIOoW3_FAxfhO1xl9MyHVfRItXj07nWUdqNmEJ5uzRrB7S8HJJGlFw6O/pub?gid=1041329824&single=true&output=csv";
+        const LOGS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxjl2SBoAlEs4_Mwa2iSPjVnn2pZTER97S1KB5VBz4ea8FlUFvhEEgsoaNh1Qq112AU83yVrT38HYm/pub?gid=1034821305&single=true&output=csv";
+        const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeeY28dEnSp_oXMDFJPORV7I-XZQzc6kuklSk8dEEscRKYXFQ/formResponse";
         
         // Google Form 欄位對應代碼 (Entry ID)
         const FORM_FIELDS = {
-            code: "entry.111111111", // 識別碼
-            name: "entry.222222222", // 姓名
-            type: "entry.333333333", // 身分
-            time: "entry.444444444"  // 點名時間
+            code: "entry.336311315", // 識別碼
+            name: "entry.1670634759", // 姓名
+            type: "entry.750019576", // 身分
+            time: "entry.128880278"  // 點名時間
         };
         // ==========================================
 
