@@ -103,7 +103,7 @@
     <!-- JavaScript 邏輯設定 -->
     <script>
         // ==========================================
-        // 🛠️ 幹部端設定區
+        // 🛠️ 幹部端設定區 (已填入您的正確網址)
         // ==========================================
         const MEMBERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTE8wQ1TZ4oQC4fiX2LrCAXBIOoW3_FAxfhO1xl9MyHVfRItXj07nWUdqNmEJ5uzRrB7S8HJJGlFw6O/pub?gid=1041329824&single=true&output=csv";
         const LOGS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxjl2SBoAlEs4_Mwa2iSPjVnn2pZTER97S1KB5VBz4ea8FlUFvhEEgsoaNh1Qq112AU83yVrT38HYm/pub?gid=1034821305&single=true&output=csv";
@@ -123,7 +123,6 @@
         const resultCard = document.getElementById('resultCard');
         const todayCountEl = document.getElementById('todayCount');
 
-        // 確保網頁載入後，輸入框永遠保持焦點（讓掃描槍隨時能用）
         window.onload = () => {
             inputField.focus();
             loadTodayCount();
@@ -133,17 +132,15 @@
             inputField.focus();
         });
 
-        // 監聽掃描槍或手動輸入的 Enter 鍵
         inputField.addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
                 const code = inputField.value.trim();
-                inputField.value = ''; // 清空輸入框準備下次掃描
+                inputField.value = ''; 
                 if (!code) return;
                 await handleCheckIn(code);
             }
         });
 
-        // 簡易 CSV 解析器 (自動剝除前後雙引號)
         function parseCSV(text) {
             let lines = text.split("\n");
             let result = [];
@@ -163,7 +160,6 @@
             return result;
         }
 
-        // 載入今日累計人數
         async function loadTodayCount() {
             if (!LOGS_CSV_URL.includes("http")) return;
             try {
@@ -183,7 +179,6 @@
             }
         }
 
-        // 執行點名比對與回傳 (強力過濾單雙引號與空格)
         async function handleCheckIn(code) {
             showStatus("正在驗證學員身分...", "info");
             
@@ -199,15 +194,20 @@
                 const members = parseCSV(memText);
                 const logs = parseCSV(logText);
 
-                // 強力清潔輸入：剝除單引號、雙引號、空格、橫線並轉大寫
+                // 清洗輸入值與去除開頭零（解決試算表數字格式自動去掉 0 的問題）
                 const cleanInput = code.replace(/^['"]+|['"]+$/g, '').replace(/[\s-]/g, '').toUpperCase();
+                const inputNoZero = cleanInput.replace(/^0+/, '');
 
-                // 智慧全欄位比對：自動過濾引號與空格，搜尋試算表中所有欄位
+                // 智慧全欄位比對（支援有無開頭零、引號過濾）
                 const matchedMember = members.find(m => {
                     return Object.values(m).some(val => {
                         if (!val) return false;
                         const cleanVal = String(val).replace(/^['"]+|['"]+$/g, '').replace(/[\s-]/g, '').toUpperCase();
-                        return cleanVal === cleanInput || cleanVal.includes(cleanInput);
+                        const valNoZero = cleanVal.replace(/^0+/, '');
+                        
+                        return cleanVal === cleanInput || 
+                               (inputNoZero.length > 5 && valNoZero === inputNoZero) ||
+                               cleanVal.includes(cleanInput);
                     });
                 });
 
@@ -217,20 +217,17 @@
                     return;
                 }
 
-                // 智慧提取姓名與身分
                 const name = matchedMember['姓名'] || matchedMember['學員姓名'] || Object.values(matchedMember)[2] || "未知姓名";
                 const type = matchedMember['報名類型'] || matchedMember['身分'] || matchedMember['身分別'] || Object.values(matchedMember)[1] || "一般學員";
 
-                // 計算過去點名次數
                 const userLogs = logs.filter(l => {
                     const rowCode = String(l['識別碼'] || Object.values(l)[0] || "").replace(/^['"]+|['"]+$/g, '').replace(/[\s-]/g, '').toUpperCase();
-                    return rowCode === cleanInput;
+                    return rowCode === cleanInput || rowCode.replace(/^0+/, '') === inputNoZero;
                 });
                 const visitCount = userLogs.length + 1;
 
                 const nowTime = new Date().toLocaleString();
 
-                // 背景安靜送出到 Google 表單
                 const formData = new URLSearchParams();
                 formData.append(FORM_FIELDS.code, code);
                 formData.append(FORM_FIELDS.name, name);
@@ -243,7 +240,6 @@
                     body: formData
                 }).catch(e => console.log("Form submit note:", e));
 
-                // 畫面呈現成功卡片
                 showStatus(`✅ 點名成功！歡迎 ${name}`, "success");
                 
                 document.getElementById('resName').innerText = name;
@@ -264,7 +260,6 @@
             }
         }
 
-        // 切換除錯面板並顯示目前讀到的會員資料
         async function toggleDebug() {
             const panel = document.getElementById('debugPanel');
             panel.classList.toggle('hidden');
@@ -279,7 +274,7 @@
                     } else {
                         let info = `✅ 成功載入 ${members.length} 筆會員資料：\n`;
                         members.forEach((m, idx) => {
-                            info += `[${idx+1}] 姓名: ${m['姓名'] || '未知'} | 手機/學號: ${JSON.stringify(m)}\n`;
+                            info += `[${idx+1}] 姓名: ${m['姓名'] || '未知'} | 原始資料: ${JSON.stringify(m)}\n`;
                         });
                         panel.innerText = info;
                     }
@@ -292,7 +287,6 @@
         function showStatus(msg, type) {
             statusMessage.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-rose-50', 'text-rose-800', 'border-rose-200', 'bg-gray-50', 'text-gray-800', 'border-gray-200');
             
-            C
             if (type === 'success') {
                 statusMessage.classList.add('bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
             } else if (type === 'error') {
