@@ -83,11 +83,19 @@
             </div>
         </div>
 
-        <!-- 系統操作說明 -->
-        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs text-gray-600 space-y-1">
-            <p class="font-semibold text-gray-700">💡 操作小叮嚀：</p>
+        <!-- 系統操作說明與除錯按鈕 -->
+        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs text-gray-600 space-y-2">
+            <div class="flex items-center justify-between">
+                <p class="font-semibold text-gray-700">💡 操作小叮嚀：</p>
+                <button onclick="toggleDebug()" class="text-indigo-600 hover:underline font-bold">🔍 檢查資料庫讀取狀態</button>
+            </div>
             <p>1. 游標會自動保持在框內等待，可使用掃描槍或是手動輸入。</p>
             <p>2. 可查核該學員姓名，同時提供本學期第幾次出席。</p>
+            
+            <!-- 除錯清單面板 -->
+            <div id="debugPanel" class="hidden mt-3 p-3 bg-white border border-gray-300 rounded-xl max-h-40 overflow-y-auto font-mono text-[11px] text-gray-700">
+                正在載入資料庫內容...
+            </div>
         </div>
 
     </div>
@@ -95,7 +103,7 @@
     <!-- JavaScript 邏輯設定 -->
     <script>
         // ==========================================
-        // 🛠️ 幹部端設定區 (請在此填入您的實際網址與 ID)
+        // 🛠️ 幹部端設定區 (已幫您完整填入正確網址)
         // ==========================================
         const MEMBERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTE8wQ1TZ4oQC4fiX2LrCAXBIOoW3_FAxfhO1xl9MyHVfRItXj07nWUdqNmEJ5uzRrB7S8HJJGlFw6O/pub?gid=1041329824&single=true&output=csv";
         const LOGS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxjl2SBoAlEs4_Mwa2iSPjVnn2pZTER97S1KB5VBz4ea8FlUFvhEEgsoaNh1Qq112AU83yVrT38HYm/pub?gid=1034821305&single=true&output=csv";
@@ -135,18 +143,19 @@
             }
         });
 
-        // 簡易 CSV 解析器
+        // 簡易 CSV 解析器 (自動剝除前後雙引號)
         function parseCSV(text) {
             let lines = text.split("\n");
             let result = [];
-            let headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ''));
+            if (lines.length === 0) return result;
+            let headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ''));
             
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
                 let currentLine = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
                 let obj = {};
                 for (let j = 0; j < headers.length; j++) {
-                    let val = currentLine[j] ? currentLine[j].trim().replace(/^"|"$/g, '') : "";
+                    let val = currentLine[j] ? currentLine[j].trim().replace(/^["']|["']$/g, '') : "";
                     obj[headers[j]] = val;
                 }
                 result.push(obj);
@@ -174,7 +183,7 @@
             }
         }
 
-        // 執行點名比對與回傳 (具備全欄位智慧比對與容錯)
+        // 執行點名比對與回傳 (強力過濾單雙引號與空格)
         async function handleCheckIn(code) {
             showStatus("正在驗證學員身分...", "info");
             
@@ -190,13 +199,14 @@
                 const members = parseCSV(memText);
                 const logs = parseCSV(logText);
 
-                const cleanInput = code.replace(/[\s-]/g, '').toUpperCase();
+                // 強力清潔輸入：剝除單引號、雙引號、空格、橫線並轉大寫
+                const cleanInput = code.replace(/^['"]+|['"]+$/g, '').replace(/[\s-]/g, '').toUpperCase();
 
-                // 智慧全欄位比對：自動過濾空格與橫線，搜尋試算表中所有欄位
+                // 智慧全欄位比對：自動過濾引號與空格，搜尋試算表中所有欄位
                 const matchedMember = members.find(m => {
                     return Object.values(m).some(val => {
                         if (!val) return false;
-                        const cleanVal = String(val).replace(/[\s-]/g, '').toUpperCase();
+                        const cleanVal = String(val).replace(/^['"]+|['"]+$/g, '').replace(/[\s-]/g, '').toUpperCase();
                         return cleanVal === cleanInput || cleanVal.includes(cleanInput);
                     });
                 });
@@ -207,20 +217,20 @@
                     return;
                 }
 
-                // 智慧提取姓名與身分（自動從常見欄位名稱找尋）
+                // 智慧提取姓名與身分
                 const name = matchedMember['姓名'] || matchedMember['學員姓名'] || Object.values(matchedMember)[2] || "未知姓名";
                 const type = matchedMember['報名類型'] || matchedMember['身分'] || matchedMember['身分別'] || Object.values(matchedMember)[1] || "一般學員";
 
-                // 3. 計算過去點名次數
+                // 計算過去點名次數
                 const userLogs = logs.filter(l => {
-                    const rowCode = String(l['識別碼'] || Object.values(l)[0] || "").replace(/[\s-]/g, '').toUpperCase();
+                    const rowCode = String(l['識別碼'] || Object.values(l)[0] || "").replace(/^['"]+|['"]+$/g, '').replace(/[\s-]/g, '').toUpperCase();
                     return rowCode === cleanInput;
                 });
                 const visitCount = userLogs.length + 1;
 
                 const nowTime = new Date().toLocaleString();
 
-                // 4. 背景安靜送出到 Google 表單
+                // 背景安靜送出到 Google 表單
                 const formData = new URLSearchParams();
                 formData.append(FORM_FIELDS.code, code);
                 formData.append(FORM_FIELDS.name, name);
@@ -233,7 +243,7 @@
                     body: formData
                 }).catch(e => console.log("Form submit note:", e));
 
-                // 5. 畫面呈現成功卡片
+                // 畫面呈現成功卡片
                 showStatus(`✅ 點名成功！歡迎 ${name}`, "success");
                 
                 document.getElementById('resName').innerText = name;
@@ -254,9 +264,35 @@
             }
         }
 
+        // 切換除錯面板並顯示目前讀到的會員資料
+        async function toggleDebug() {
+            const panel = document.getElementById('debugPanel');
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) {
+                panel.innerText = "正在讀取會員資料庫...";
+                try {
+                    const res = await fetch(MEMBERS_CSV_URL + "?t=" + new Date().getTime());
+                    const text = await res.text();
+                    const members = parseCSV(text);
+                    if (members.length === 0) {
+                        panel.innerText = "⚠️ 讀取到的會員資料庫是空的，請確認 CSV 網址是否正確！";
+                    } else {
+                        let info = `✅ 成功載入 ${members.length} 筆會員資料：\n`;
+                        members.forEach((m, idx) => {
+                            info += `[${idx+1}] 姓名: ${m['姓名'] || '未知'} | 手機/學號: ${JSON.stringify(m)}\n`;
+                        });
+                        panel.innerText = info;
+                    }
+                } catch (e) {
+                    panel.innerText = "❌ 讀取失敗，錯誤訊息：" + e.message;
+                }
+            }
+        }
+
         function showStatus(msg, type) {
             statusMessage.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-rose-50', 'text-rose-800', 'border-rose-200', 'bg-gray-50', 'text-gray-800', 'border-gray-200');
             
+            C
             if (type === 'success') {
                 statusMessage.classList.add('bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
             } else if (type === 'error') {
