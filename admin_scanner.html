@@ -35,7 +35,7 @@
             </div>
         </div>
 
-        <!-- 條碼掃描 / 手動輸入長方形方框區域 -->
+        <!-- 條碼掃描 / 手動輸入方框區域 -->
         <div class="relative">
             <label for="barcodeInput" class="block text-sm font-semibold text-gray-700 mb-2">
                 ⚡ 掃描槍／手動輸入
@@ -100,18 +100,17 @@
     <!-- JavaScript 邏輯設定 -->
     <script>
         // ==========================================
-        // 🛠️ 幹部端設定區 (請在此確認您的真實試算表與表單網址)
+        // 幹部端設定區 
         // ==========================================
         const MEMBERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTE8wQ1TZ4oQC4fiX2LrCAXBIOoW3_FAxfhO1xl9MyHVfRItXj07nWUdqNmEJ5uzRrB7S8HJJGlFw6O/pub?gid=1041329824&single=true&output=csv";
-        const LOGS_CSV_URL = ""; // 若尚無點名紀錄表可先留空
-        const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/請填入您的點名表單ID/formResponse";
+        const LOGS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxjl2SBoAlEs4_Mwa2iSPjVnn2pZTER97S1KB5VBz4ea8FlUFvhEEgsoaNh1Qq112AU83yVrT38HYm/pub?gid=1034821305&single=true&output=csv"; 
+        const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeeY28dEnSp_oXMDFJPORV7I-XZQzc6kuklSk8dEEscRKYXFQ/formResponse";
         
-        // Google Form 欄位對應代碼 (Entry ID)
         const FORM_FIELDS = {
-            code: "entry.111111", 
-            name: "entry.222222", 
-            type: "entry.333333", 
-            time: "entry.444444"  
+            code: "entry.336311315", 
+            name: "entry.1670634759", 
+            type: "entry.750019576", 
+            time: "entry.128880278"  
         };
         // ==========================================
 
@@ -138,7 +137,7 @@
             }
         });
 
-        // 專為您的欄位結構打造的精準解析器
+        // 通用 CSV 解析器：保留完整每欄資料
         function parseCSV(text) {
             let lines = text.split("\n");
             let result = [];
@@ -146,16 +145,13 @@
             
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
-                // 逗號切割並清除前後引號與空白
                 let cols = lines[i].split(',').map(val => val ? val.trim().replace(/^["']+|['"]+$/g, '') : '');
                 
                 result.push({
                     timestamp: cols[0] || '', // 第 1 欄：時間
-                    type: cols[1] || '',      // 第 2 欄：身分 (台大生/校外生...)
-                    name: cols[2] || '',      // 第 3 欄：名字
-                    identifier: cols[3] || '',// 第 4 欄：識別碼 (學號或手機號碼)
-                    last5: cols[4] || '',     // 第 5 欄：末五碼
-                    _raw: cols
+                    type: cols[1] || '',      // 第 2 欄：身分
+                    name: cols[2] || '',      // 第 3 欄：姓名
+                    _raw: cols                // 保留整列所有欄位供全域搜索
                 });
             }
             return result;
@@ -199,10 +195,12 @@
 
                 const cleanInput = code.replace(/^['"]+|['"]+$/g, '').toUpperCase();
 
-                // 【核心修正】嚴格比對第 4 欄（identifier）
+                // 【全欄位地毯式搜索機制】無論代碼在哪一欄，只要這列裡有出現就抓出來！
                 const matchedMember = members.find(m => {
-                    const idVal = m.identifier.toUpperCase();
-                    return idVal && idVal === cleanInput;
+                    return m._raw.some(colVal => {
+                        const cleanCol = String(colVal || '').replace(/^['"]+|['"]+$/g, '').toUpperCase();
+                        return cleanCol && cleanCol === cleanInput;
+                    });
                 });
 
                 if (!matchedMember) {
@@ -215,8 +213,10 @@
                 const type = matchedMember.type || "一般學員";
 
                 const userLogs = logs.filter(l => {
-                    const rowCode = String(l.identifier || "").replace(/^['"]+|['"]+$/g, '').toUpperCase();
-                    return rowCode === cleanInput;
+                    return l._raw.some(colVal => {
+                        const cleanCol = String(colVal || '').replace(/^['"]+|['"]+$/g, '').toUpperCase();
+                        return cleanCol && cleanCol === cleanInput;
+                    });
                 });
                 const visitCount = userLogs.length + 1;
 
@@ -266,11 +266,11 @@
                     const text = await res.text();
                     const members = parseCSV(text);
                     if (members.length === 0) {
-                        panel.innerText = "⚠️ 讀取到的會員資料庫是空的！";
+                        panel.innerText = "⚠️ 讀取到的會員資料庫是空的，或抓到了錯誤頁面！";
                     } else {
-                        let info = `✅ 成功載入 ${members.length} 筆會員資料（精準對應第 4 欄識別碼）：\n`;
+                        let info = `✅ 成功載入 ${members.length} 筆會員資料（全欄位搜索模式）：\n`;
                         members.forEach((m, idx) => {
-                            info += `[${idx+1}] 姓名: ${m.name} | 身分: ${m.type} | 識別碼(第4欄): ${m.identifier}\n`;
+                            info += `[${idx+1}] 姓名: ${m.name} | 身分: ${m.type} | 所有欄位內容: [${m._raw.join(', ')}]\n`;
                         });
                         panel.innerText = info;
                     }
