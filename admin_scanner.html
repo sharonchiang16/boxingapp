@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>台大拳擊社 - 點名系統</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -14,7 +12,6 @@
 </head>
 <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col items-center justify-start p-4 sm:p-8">
 
-    <!-- 主容器 -->
     <div class="w-full max-w-2xl bg-white border border-gray-200 shadow-xl rounded-3xl p-6 sm:p-8 space-y-6">
         
         <!-- 頂部標題與今日累計人數 -->
@@ -87,13 +84,13 @@
         <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs text-gray-600 space-y-2">
             <div class="flex items-center justify-between">
                 <p class="font-semibold text-gray-700">💡 操作小叮嚀：</p>
-                <button onclick="toggleDebug()" class="text-indigo-600 hover:underline font-bold">🔍 檢查資料庫讀取狀態</button>
+                <button onclick="toggleDebug()" class="text-red-800 hover:underline font-bold">🔍 檢查資料庫讀取狀態</button>
             </div>
             <p>1. 游標會自動保持在框內等待，可使用掃描槍或是手動輸入。</p>
             <p>2. 可查核該學員姓名，同時提供本學期第幾次出席。</p>
             
             <!-- 除錯清單面板 -->
-            <div id="debugPanel" class="hidden mt-3 p-3 bg-white border border-gray-300 rounded-xl max-h-40 overflow-y-auto font-mono text-[11px] text-gray-700">
+            <div id="debugPanel" class="hidden mt-3 p-3 bg-white border border-gray-300 rounded-xl max-h-48 overflow-y-auto font-mono text-[11px] text-gray-700">
                 正在載入資料庫內容...
             </div>
         </div>
@@ -103,11 +100,11 @@
     <!-- JavaScript 邏輯設定 -->
     <script>
         // ==========================================
-        // 🛠️ 幹部端設定區 (已幫您填入正確的會員 CSV 網址)
+        // 🛠️ 幹部端設定區 (請在此確認您的真實試算表與表單網址)
         // ==========================================
         const MEMBERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTE8wQ1TZ4oQC4fiX2LrCAXBIOoW3_FAxfhO1xl9MyHVfRItXj07nWUdqNmEJ5uzRrB7S8HJJGlFw6O/pub?gid=1041329824&single=true&output=csv";
-        const LOGS_CSV_URL = ""; // 點名紀錄 CSV 網址 (若尚未建立可先留空)
-        const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/請填入點名表單ID/formResponse";
+        const LOGS_CSV_URL = ""; // 若尚無點名紀錄表可先留空
+        const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/請填入您的點名表單ID/formResponse";
         
         // Google Form 欄位對應代碼 (Entry ID)
         const FORM_FIELDS = {
@@ -141,22 +138,25 @@
             }
         });
 
+        // 專為您的欄位結構打造的精準解析器
         function parseCSV(text) {
             let lines = text.split("\n");
             let result = [];
             if (lines.length === 0) return result;
-            let headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ''));
             
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
-                let currentLine = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                let obj = {};
-                for (let j = 0; j < headers.length; j++) {
-                    let val = currentLine[j] ? currentLine[j].trim().replace(/^["']|["']$/g, '') : "";
-                    obj[headers[j]] = val;
-                }
-                obj._rawArray = currentLine.map(v => v ? v.trim().replace(/^["']|["']$/g, '') : "");
-                result.push(obj);
+                // 逗號切割並清除前後引號與空白
+                let cols = lines[i].split(',').map(val => val ? val.trim().replace(/^["']+|['"]+$/g, '') : '');
+                
+                result.push({
+                    timestamp: cols[0] || '', // 第 1 欄：時間
+                    type: cols[1] || '',      // 第 2 欄：身分 (台大生/校外生...)
+                    name: cols[2] || '',      // 第 3 欄：名字
+                    identifier: cols[3] || '',// 第 4 欄：識別碼 (學號或手機號碼)
+                    last5: cols[4] || '',     // 第 5 欄：末五碼
+                    _raw: cols
+                });
             }
             return result;
         }
@@ -170,7 +170,7 @@
                 
                 const todayStr = new Date().toLocaleDateString();
                 const todayLogs = logs.filter(row => {
-                    const timeVal = row['點名時間'] || row._rawArray?.[3] || "";
+                    const timeVal = row.timestamp || "";
                     return timeVal.includes(todayStr) || timeVal.startsWith(new Date().toISOString().split('T')[0]);
                 });
                 
@@ -199,14 +199,10 @@
 
                 const cleanInput = code.replace(/^['"]+|['"]+$/g, '').toUpperCase();
 
-                // 精準比對：檢查第 4 項 (index 3 手機) 與第 5 項 (index 4 學號)
+                // 【核心修正】嚴格比對第 4 欄（identifier）
                 const matchedMember = members.find(m => {
-                    const arr = m._rawArray || [];
-                    const phoneCol = arr[3] ? arr[3].replace(/^['"]+|['"]+$/g, '').toUpperCase() : '';
-                    const studentIdCol = arr[4] ? arr[4].replace(/^['"]+|['"]+$/g, '').toUpperCase() : '';
-                    
-                    return (phoneCol && phoneCol === cleanInput) || 
-                           (studentIdCol && studentIdCol === cleanInput);
+                    const idVal = m.identifier.toUpperCase();
+                    return idVal && idVal === cleanInput;
                 });
 
                 if (!matchedMember) {
@@ -215,11 +211,11 @@
                     return;
                 }
 
-                const name = matchedMember['姓名'] || matchedMember._rawArray[2] || "未知姓名";
-                const type = matchedMember['報名類型'] || matchedMember._rawArray[1] || "一般學員";
+                const name = matchedMember.name || "未知姓名";
+                const type = matchedMember.type || "一般學員";
 
                 const userLogs = logs.filter(l => {
-                    const rowCode = String(l['識別碼'] || l._rawArray?.[0] || "").replace(/^['"]+|['"]+$/g, '').toUpperCase();
+                    const rowCode = String(l.identifier || "").replace(/^['"]+|['"]+$/g, '').toUpperCase();
                     return rowCode === cleanInput;
                 });
                 const visitCount = userLogs.length + 1;
@@ -270,275 +266,11 @@
                     const text = await res.text();
                     const members = parseCSV(text);
                     if (members.length === 0) {
-                        panel.innerText = "⚠️ 讀取到的會員資料庫是空的，請確認 CSV 網址是否正確！";
+                        panel.innerText = "⚠️ 讀取到的會員資料庫是空的！";
                     } else {
-                        let info = `✅ 成功載入 ${members.length} 筆會員資料：\n`;
+                        let info = `✅ 成功載入 ${members.length} 筆會員資料（精準對應第 4 欄識別碼）：\n`;
                         members.forEach((m, idx) => {
-                            info += `[${idx+1}] 姓名: ${m['姓名'] || m._rawArray?.[2] || '未知'} | 手機: ${m._rawArray?.[3] || ''} | 學號: ${m._rawArray?.[4] || ''}\n`;
-                        });
-                        panel.innerText = info;
-                    }
-                } catch (e) {
-                    panel.innerText = "❌ 讀取失敗，錯誤訊息：" + e.message;
-                }
-            }
-        }
-
-        function showStatus(msg, type) {
-            statusMessage.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-rose-50', 'text-rose-800', 'border-rose-200', 'bg-gray-50', 'text-gray-800', 'border-gray-200');
-            
-            if (type === 'success') {
-                statusMessage.classList.add('bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
-            } else if (type === 'error') {
-                statusMessage.classList.add('bg-rose-50', 'text-rose-800', 'border', 'border-rose-200');
-            } else {
-                statusMessage.classList.add('bg-gray-50', 'text-gray-800', 'border', 'border-gray-200');
-            }
-            statusMessage.innerText = msg;
-        }
-    </script>
-</body>
-</html>                </div>
-            </div>
-        </div>
-
-        <!-- 條碼掃描 / 手動輸入長方形方框區域 -->
-        <div class="relative">
-            <label for="barcodeInput" class="block text-sm font-semibold text-gray-700 mb-2">
-                ⚡ 掃描槍／手動輸入
-            </label>
-            <div class="relative flex items-center">
-                <input 
-                    type="text" 
-                    id="barcodeInput" 
-                    autocomplete="off" 
-                    placeholder="請掃描條碼或手動輸入手機/學號後按 Enter..." 
-                    class="w-full bg-white border-2 border-gray-300 focus:border-red-800 focus:ring-4 focus:ring-red-800/20 text-gray-900 placeholder-gray-400 text-lg px-5 py-4 rounded-2xl outline-none transition-all shadow-inner"
-                >
-                <div class="absolute right-4 text-gray-400 text-sm pointer-events-none bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200">
-                    Ready
-                </div>
-            </div>
-        </div>
-
-        <!-- 狀態與提示訊息 -->
-        <div id="statusMessage" class="hidden p-4 rounded-2xl text-sm font-medium transition-all"></div>
-
-        <!-- 刷卡成功後顯示的學員資訊卡片 -->
-        <div id="resultCard" class="hidden bg-gray-50 border border-gray-200 rounded-2xl p-6 space-y-4">
-            <div class="flex items-center justify-between">
-                <span id="resultBadge" class="px-3 py-1 text-xs font-bold rounded-full"></span>
-                <span id="scanTime" class="text-xs text-gray-500"></span>
-            </div>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
-                    <div class="text-xs text-gray-500 font-medium">學員姓名</div>
-                    <div id="resName" class="text-lg font-bold text-gray-900 mt-0.5">-</div>
-                </div>
-                <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
-                    <div class="text-xs text-gray-500 font-medium">身分 / 方案</div>
-                    <div id="resType" class="text-lg font-bold text-gray-900 mt-0.5">-</div>
-                </div>
-                <div class="bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
-                    <div class="text-xs text-gray-500 font-medium">參與紀錄</div>
-                    <div id="resCount" class="text-lg font-bold text-red-800 mt-0.5">-</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 系統操作說明與除錯按鈕 -->
-        <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs text-gray-600 space-y-2">
-            <div class="flex items-center justify-between">
-                <p class="font-semibold text-gray-700">💡 操作小叮嚀：</p>
-                <button onclick="toggleDebug()" class="text-indigo-600 hover:underline font-bold">🔍 檢查資料庫讀取狀態</button>
-            </div>
-            <p>1. 游標會自動保持在框內等待，可使用掃描槍或是手動輸入。</p>
-            <p>2. 可查核該學員姓名，同時提供本學期第幾次出席。</p>
-            
-            <!-- 除錯清單面板 -->
-            <div id="debugPanel" class="hidden mt-3 p-3 bg-white border border-gray-300 rounded-xl max-h-40 overflow-y-auto font-mono text-[11px] text-gray-700">
-                正在載入資料庫內容...
-            </div>
-        </div>
-
-    </div>
-
-    <!-- JavaScript 邏輯設定 -->
-    <script>
-        // ==========================================
-        // 🛠️ 幹部端設定區 (已填入您的正確網址)
-        // ==========================================
-        const MEMBERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTE8wQ1TZ4oQC4fiX2LrCAXBIOoW3_FAxfhO1xl9MyHVfRItXj07nWUdqNmEJ5uzRrB7S8HJJGlFw6O/pub?gid=1041329824&single=true&output=csv";
-        const LOGS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxjl2SBoAlEs4_Mwa2iSPjVnn2pZTER97S1KB5VBz4ea8FlUFvhEEgsoaNh1Qq112AU83yVrT38HYm/pub?gid=1034821305&single=true&output=csv";
-        const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeeY28dEnSp_oXMDFJPORV7I-XZQzc6kuklSk8dEEscRKYXFQ/formResponse";
-        
-        // Google Form 欄位對應代碼 (Entry ID)
-        const FORM_FIELDS = {
-            code: "entry.336311315", // 識別碼
-            name: "entry.1670634759", // 姓名
-            type: "entry.750019576", // 身分
-            time: "entry.128880278"  // 點名時間
-        };
-        // ==========================================
-
-        const inputField = document.getElementById('barcodeInput');
-        const statusMessage = document.getElementById('statusMessage');
-        const resultCard = document.getElementById('resultCard');
-        const todayCountEl = document.getElementById('todayCount');
-
-        window.onload = () => {
-            inputField.focus();
-            loadTodayCount();
-        };
-
-        document.addEventListener('click', () => {
-            inputField.focus();
-        });
-
-        inputField.addEventListener('keypress', async function (e) {
-            if (e.key === 'Enter') {
-                const code = inputField.value.trim();
-                inputField.value = ''; 
-                if (!code) return;
-                await handleCheckIn(code);
-            }
-        });
-
-        function parseCSV(text) {
-            let lines = text.split("\n");
-            let result = [];
-            if (lines.length === 0) return result;
-            let headers = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ''));
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                let currentLine = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                let obj = {};
-                for (let j = 0; j < headers.length; j++) {
-                    let val = currentLine[j] ? currentLine[j].trim().replace(/^["']|["']$/g, '') : "";
-                    obj[headers[j]] = val;
-                }
-                result.push(obj);
-            }
-            return result;
-        }
-
-        async function loadTodayCount() {
-            if (!LOGS_CSV_URL.includes("http")) return;
-            try {
-                const res = await fetch(LOGS_CSV_URL + "?t=" + new Date().getTime());
-                const text = await res.text();
-                const logs = parseCSV(text);
-                
-                const todayStr = new Date().toLocaleDateString();
-                const todayLogs = logs.filter(row => {
-                    const timeVal = row['點名時間'] || Object.values(row)[3] || "";
-                    return timeVal.includes(todayStr) || timeVal.startsWith(new Date().toISOString().split('T')[0]);
-                });
-                
-                todayCountEl.innerText = todayLogs.length + " 人";
-            } catch (err) {
-                console.error("無法取得今日累計人數", err);
-            }
-        }
-
-        async function handleCheckIn(code) {
-            showStatus("正在驗證學員身分...", "info");
-            
-            try {
-                const [memRes, logRes] = await Promise.all([
-                    fetch(MEMBERS_CSV_URL + "?t=" + new Date().getTime()),
-                    fetch(LOGS_CSV_URL + "?t=" + new Date().getTime())
-                ]);
-
-                const memText = await memRes.text();
-                const logText = await logRes.text();
-                
-                const members = parseCSV(memText);
-                const logs = parseCSV(logText);
-
-                // 清洗輸入值與去除開頭零（解決試算表數字格式自動去掉 0 的問題）
-                const cleanInput = code.replace(/^['"]+|['"]+$/g, '').replace(/[\s-]/g, '').toUpperCase();
-                const inputNoZero = cleanInput.replace(/^0+/, '');
-
-                // 智慧全欄位比對（支援有無開頭零、引號過濾）
-                const matchedMember = members.find(m => {
-                    return Object.values(m).some(val => {
-                        if (!val) return false;
-                        const cleanVal = String(val).replace(/^['"]+|['"]+$/g, '').replace(/[\s-]/g, '').toUpperCase();
-                        const valNoZero = cleanVal.replace(/^0+/, '');
-                        
-                        return cleanVal === cleanInput || 
-                               (inputNoZero.length > 5 && valNoZero === inputNoZero) ||
-                               cleanVal.includes(cleanInput);
-                    });
-                });
-
-                if (!matchedMember) {
-                    showStatus(`❌ 查無此識別碼 (${code})，請確認是否購課或重新輸入！`, "error");
-                    resultCard.classList.add('hidden');
-                    return;
-                }
-
-                const name = matchedMember['姓名'] || matchedMember['學員姓名'] || Object.values(matchedMember)[2] || "未知姓名";
-                const type = matchedMember['報名類型'] || matchedMember['身分'] || matchedMember['身分別'] || Object.values(matchedMember)[1] || "一般學員";
-
-                const userLogs = logs.filter(l => {
-                    const rowCode = String(l['識別碼'] || Object.values(l)[0] || "").replace(/^['"]+|['"]+$/g, '').replace(/[\s-]/g, '').toUpperCase();
-                    return rowCode === cleanInput || rowCode.replace(/^0+/, '') === inputNoZero;
-                });
-                const visitCount = userLogs.length + 1;
-
-                const nowTime = new Date().toLocaleString();
-
-                const formData = new URLSearchParams();
-                formData.append(FORM_FIELDS.code, code);
-                formData.append(FORM_FIELDS.name, name);
-                formData.append(FORM_FIELDS.type, type);
-                formData.append(FORM_FIELDS.time, nowTime);
-
-                fetch(CHECKIN_FORM_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: formData
-                }).catch(e => console.log("Form submit note:", e));
-
-                showStatus(`✅ 點名成功！歡迎 ${name}`, "success");
-                
-                document.getElementById('resName').innerText = name;
-                document.getElementById('resType').innerText = type;
-                document.getElementById('resCount').innerText = `累積第 ${visitCount} 次`;
-                document.getElementById('scanTime').innerText = `簽到時間：${nowTime}`;
-                
-                const badge = document.getElementById('resultBadge');
-                badge.className = "px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200";
-                badge.innerText = "打卡成功";
-
-                resultCard.classList.remove('hidden');
-                loadTodayCount();
-
-            } catch (err) {
-                console.error(err);
-                showStatus("⚠️ 讀取或連線發生錯誤，請檢查網路與網址設定。", "error");
-            }
-        }
-
-        async function toggleDebug() {
-            const panel = document.getElementById('debugPanel');
-            panel.classList.toggle('hidden');
-            if (!panel.classList.contains('hidden')) {
-                panel.innerText = "正在讀取會員資料庫...";
-                try {
-                    const res = await fetch(MEMBERS_CSV_URL + "?t=" + new Date().getTime());
-                    const text = await res.text();
-                    const members = parseCSV(text);
-                    if (members.length === 0) {
-                        panel.innerText = "⚠️ 讀取到的會員資料庫是空的，請確認 CSV 網址是否正確！";
-                    } else {
-                        let info = `✅ 成功載入 ${members.length} 筆會員資料：\n`;
-                        members.forEach((m, idx) => {
-                            info += `[${idx+1}] 姓名: ${m['姓名'] || '未知'} | 原始資料: ${JSON.stringify(m)}\n`;
+                            info += `[${idx+1}] 姓名: ${m.name} | 身分: ${m.type} | 識別碼(第4欄): ${m.identifier}\n`;
                         });
                         panel.innerText = info;
                     }
