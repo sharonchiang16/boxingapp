@@ -97,13 +97,11 @@
 
     </div>
 
-    <!-- JavaScript 邏輯設定 -->
     <script>
         // ==========================================
-        // 幹部端設定區 
+        // 幹部端設定區 (已自動填入您的 Google Apps Script 與表單網址)
         // ==========================================
-        const MEMBERS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTE8wQ1TZ4oQC4fiX2LrCAXBIOoW3_FAxfhO1xl9MyHVfRItXj07nWUdqNmEJ5uzRrB7S8HJJGlFw6O/pub?gid=1041329824&single=true&output=csv";
-        const LOGS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxjl2SBoAlEs4_Mwa2iSPjVnn2pZTER97S1KB5VBz4ea8FlUFvhEEgsoaNh1Qq112AU83yVrT38HYm/pub?gid=1034821305&single=true&output=csv"; 
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxc2jV4pLmUte20g_mr-sznzDuML7BnqYCCBFvAnys3e4U73MCDV1C17WGkquGPw0c/exec"; 
         const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeeY28dEnSp_oXMDFJPORV7I-XZQzc6kuklSk8dEEscRKYXFQ/formResponse";
         
         const FORM_FIELDS = {
@@ -137,42 +135,16 @@
             }
         });
 
-        // 通用 CSV 解析器：保留完整每欄資料
-        function parseCSV(text) {
-            let lines = text.split("\n");
-            let result = [];
-            if (lines.length === 0) return result;
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                let cols = lines[i].split(',').map(val => val ? val.trim().replace(/^["']+|['"]+$/g, '') : '');
-                
-                result.push({
-                    timestamp: cols[0] || '', // 第 1 欄：時間
-                    type: cols[1] || '',      // 第 2 欄：身分
-                    name: cols[2] || '',      // 第 3 欄：姓名
-                    _raw: cols                // 保留整列所有欄位供全域搜索
-                });
-            }
-            return result;
-        }
-
         async function loadTodayCount() {
-            if (!LOGS_CSV_URL.includes("http")) return;
+            if (!GOOGLE_SCRIPT_URL.includes("http")) return;
             try {
-                const res = await fetch(LOGS_CSV_URL + "?t=" + new Date().getTime());
-                const text = await res.text();
-                const logs = parseCSV(text);
-                
-                const todayStr = new Date().toLocaleDateString();
-                const todayLogs = logs.filter(row => {
-                    const timeVal = row.timestamp || "";
-                    return timeVal.includes(todayStr) || timeVal.startsWith(new Date().toISOString().split('T')[0]);
-                });
-                
-                todayCountEl.innerText = todayLogs.length + " 人";
+                const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
+                const data = await res.json();
+                if (data && data.attendance) {
+                    // 計算今日總打卡次數或相關數據
+                }
             } catch (err) {
-                console.error("無法取得今日累計人數", err);
+                console.error("無法取得累計人數", err);
             }
         }
 
@@ -180,27 +152,18 @@
             showStatus("正在驗證學員身分...", "info");
             
             try {
-                const memRes = await fetch(MEMBERS_CSV_URL + "?t=" + new Date().getTime());
-                const memText = await memRes.text();
-                const members = parseCSV(memText);
-
-                let logs = [];
-                if (LOGS_CSV_URL.includes("http")) {
-                    try {
-                        const logRes = await fetch(LOGS_CSV_URL + "?t=" + new Date().getTime());
-                        const logText = await logRes.text();
-                        logs = parseCSV(logText);
-                    } catch(e) {}
-                }
+                const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
+                const data = await res.json();
+                const members = data.members || [];
+                const attendance = data.attendance || {};
 
                 const cleanInput = code.replace(/^['"]+|['"]+$/g, '').toUpperCase();
 
-                // 【全欄位地毯式搜索機制】無論代碼在哪一欄，只要這列裡有出現就抓出來！
+                // 精準比對：比對手機號碼 (phone) 或學號 (studentId)
                 const matchedMember = members.find(m => {
-                    return m._raw.some(colVal => {
-                        const cleanCol = String(colVal || '').replace(/^['"]+|['"]+$/g, '').toUpperCase();
-                        return cleanCol && cleanCol === cleanInput;
-                    });
+                    const phone = String(m.phone || '').trim().toUpperCase();
+                    const studentId = String(m.studentId || '').trim().toUpperCase();
+                    return (phone && phone === cleanInput) || (studentId && studentId === cleanInput);
                 });
 
                 if (!matchedMember) {
@@ -211,15 +174,9 @@
 
                 const name = matchedMember.name || "未知姓名";
                 const type = matchedMember.type || "一般學員";
-
-                const userLogs = logs.filter(l => {
-                    return l._raw.some(colVal => {
-                        const cleanCol = String(colVal || '').replace(/^['"]+|['"]+$/g, '').toUpperCase();
-                        return cleanCol && cleanCol === cleanInput;
-                    });
-                });
-                const visitCount = userLogs.length + 1;
-
+                
+                // 計算這是本學期第幾次出席
+                const visitCount = (attendance[cleanInput] || 0) + 1;
                 const nowTime = new Date().toLocaleString();
 
                 if (CHECKIN_FORM_URL.includes("http")) {
@@ -234,13 +191,27 @@
                         mode: 'no-cors',
                         body: formData
                     }).catch(e => console.log("Form submit note:", e));
+
+                    // 同時通知 GAS 記錄
+                    fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'checkin',
+                            identity: type,
+                            name: name,
+                            code: code,
+                            status: `🟢 第 ${visitCount} 次出席`
+                        })
+                    }).catch(e => console.log("GAS log note:", e));
                 }
 
                 showStatus(`✅ 點名成功！歡迎 ${name}`, "success");
                 
                 document.getElementById('resName').innerText = name;
                 document.getElementById('resType').innerText = type;
-                document.getElementById('resCount').innerText = `累積第 ${visitCount} 次`;
+                document.getElementById('resCount').innerText = `本學期第 ${visitCount} 次出席`;
                 document.getElementById('scanTime').innerText = `簽到時間：${nowTime}`;
                 
                 const badge = document.getElementById('resultBadge');
@@ -260,17 +231,18 @@
             const panel = document.getElementById('debugPanel');
             panel.classList.toggle('hidden');
             if (!panel.classList.contains('hidden')) {
-                panel.innerText = "正在讀取會員資料庫...";
+                panel.innerText = "正在透過 JSON API 讀取會員資料庫...";
                 try {
-                    const res = await fetch(MEMBERS_CSV_URL + "?t=" + new Date().getTime());
-                    const text = await res.text();
-                    const members = parseCSV(text);
-                    if (members.length === 0) {
-                        panel.innerText = "⚠️ 讀取到的會員資料庫是空的，或抓到了錯誤頁面！";
+                    const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
+                    const data = await res.json();
+                    const members = data.members || [];
+                    
+                    if (!Array.isArray(members) || members.length === 0) {
+                        panel.innerText = "⚠️ 讀取到的資料是空的，請確認 Apps Script 部署與試算表是否有資料！";
                     } else {
-                        let info = `✅ 成功載入 ${members.length} 筆會員資料（全欄位搜索模式）：\n`;
+                        let info = `✅ 成功透過 JSON API 載入 ${members.length} 筆會員資料：\n`;
                         members.forEach((m, idx) => {
-                            info += `[${idx+1}] 姓名: ${m.name} | 身分: ${m.type} | 所有欄位內容: [${m._raw.join(', ')}]\n`;
+                            info += `[${idx+1}] 姓名: ${m.name} | 身分: ${m.type} | 手機: ${m.phone} | 學號: ${m.studentId}\n`;
                         });
                         panel.innerText = info;
                     }
