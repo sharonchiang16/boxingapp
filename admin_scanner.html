@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>台大拳擊社 - 點名系統</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -99,9 +99,9 @@
 
     <script>
         // ==========================================
-        // 幹部端設定區（已更新正確的網頁應用程式網址）
+        // 幹部端設定區（已對應您最新的正確 Apps Script 與表單）
         // ==========================================
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcnwjlGxOIvgQF44CpasxTom-aFGK2h8Xj-3eHoSpn7pdkLHzTjpSb-QO5THsUPLER/exec"; 
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXCpevzVobMqATxDTi5CVl0c2VsHUmlUbolWhBTd0fAcd3HcUYZ-gfsRrv-fmmlnlO/exec"; 
         const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeeY28dEnSp_oXMDFJPORV7I-XZQzc6kuklSk8dEEscRKYXFQ/formResponse";
         
         const FORM_FIELDS = {
@@ -122,6 +122,7 @@
             loadTodayCount();
         };
 
+        // 保持游標永遠在輸入框內
         document.addEventListener('click', () => {
             inputField.focus();
         });
@@ -140,7 +141,7 @@
             try {
                 const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
                 const data = await res.json();
-                if (data && data.attendance) {
+                if (data && data.success && data.attendance) {
                     let total = Object.values(data.attendance).reduce((a, b) => a + b, 0);
                     todayCountEl.innerText = total + " 人";
                 }
@@ -155,12 +156,18 @@
             try {
                 const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
                 const data = await res.json();
+                
+                if (!data.success) {
+                    showStatus("⚠️ 資料庫讀取異常: " + (data.error || "未知錯誤"), "error");
+                    return;
+                }
+
                 const members = data.members || [];
                 const attendance = data.attendance || {};
 
                 const cleanInput = code.replace(/^['"]+|['"]+$/g, '').toUpperCase();
 
-                // 精準比對：比對手機號碼 (phone) 或學號 (studentId)
+                // 智慧比對：比對手機號碼 (phone) 或學號 (studentId)
                 const matchedMember = members.find(m => {
                     const phone = String(m.phone || '').trim().toUpperCase();
                     const studentId = String(m.studentId || '').trim().toUpperCase();
@@ -224,7 +231,7 @@
 
             } catch (err) {
                 console.error(err);
-                showStatus("⚠️ 讀取或連線發生錯誤，請檢查網路與網址設定。", "error");
+                showStatus("⚠️ 讀取或連線發生錯誤，請檢查網路與 Apps Script 部署權限設定（須設為任何人）。", "error");
             }
         }
 
@@ -236,10 +243,16 @@
                 try {
                     const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
                     const data = await res.json();
+                    
+                    if (!data.success) {
+                        panel.innerText = "❌ 伺服器回傳錯誤：" + (data.error || "未知錯誤");
+                        return;
+                    }
+
                     const members = data.members || [];
                     
                     if (!Array.isArray(members) || members.length === 0) {
-                        panel.innerText = "⚠️ 讀取到的資料是空的，請確認 Apps Script 部署與試算表是否有資料！";
+                        panel.innerText = "⚠️ 讀取到的會員資料是空的，請確認 Apps Script 部署與試算表是否有資料！";
                     } else {
                         let info = `✅ 成功透過 Apps Script 載入 ${members.length} 筆會員資料：\n`;
                         members.forEach((m, idx) => {
@@ -248,7 +261,7 @@
                         panel.innerText = info;
                     }
                 } catch (e) {
-                    panel.innerText = "❌ 讀取失敗，錯誤訊息：" + e.message;
+                    panel.innerText = "❌ 讀取失敗，錯誤訊息：" + e.message + " (請確認 Apps Script 存取權限設為「任何人」)";
                 }
             }
         }
