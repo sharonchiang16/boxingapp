@@ -177,8 +177,6 @@
                         <button onClick={() => setPage('home')} className="text-gray-500 mb-6 font-bold">← 返回</button>
                         <h2 className="text-2xl font-bold text-gray-800 mb-2">購買課程</h2>
                         <p className="text-gray-500 mb-6">請選擇您的報名身份</p>
-                        
-                        <BankInfoBox />
 
                         <div className="flex flex-col gap-4">
                             <button onClick={() => setPurchaseType('台大生')} className="bg-white border-2 border-red-800 text-red-800 rounded-2xl p-6 shadow-sm active:scale-95 transition-all text-left">
@@ -207,8 +205,6 @@
 
                     <form onSubmit={(e) => { e.preventDefault(); submitToGAS(purchaseData, purchaseType); }} className="flex flex-col gap-4">
                         <div><label className="block text-sm text-gray-700 mb-1 font-medium">姓名</label><input type="text" required className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg" value={purchaseData.name} onChange={(e) => setPurchaseData({...purchaseData, name: e.target.value})} /></div>
-                        
-                        <div><label className="block text-sm text-gray-700 mb-1 font-medium">手機號碼</label><input type="tel" required placeholder="09xxxxxxxx" className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg font-mono" value={purchaseData.phone} onChange={(e) => setPurchaseData({...purchaseData, phone: e.target.value})} /></div>
                         
                         {purchaseType === '台大生' && (
                             <div><label className="block text-sm text-gray-700 mb-1 font-medium">學號</label><input type="text" required placeholder="例如: B12345678" className="w-full p-3.5 border border-gray-300 rounded-xl outline-none uppercase font-mono focus:border-slate-800 text-lg" value={purchaseData.studentId} onChange={(e) => setPurchaseData({...purchaseData, studentId: e.target.value.toUpperCase()})} /></div>
