@@ -44,37 +44,6 @@
             );
         };
 
-        const BankInfoBox = () => {
-            const copyBankInfo = () => {
-                const text = "88660930767982";
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try { document.execCommand('copy'); alert("已複製帳號：8866 0930 7679 82"); } catch (err) {}
-                document.body.removeChild(textArea);
-            };
-
-            return (
-                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-orange-900 text-sm flex items-center gap-1.5">
-                            <span>💳</span> 匯款資訊 (請先轉帳再送出表單)
-                        </span>
-                    </div>
-                    <div className="bg-white p-3.5 rounded-xl border border-orange-100 flex items-center justify-between shadow-inner">
-                        <div>
-                            <span className="text-[11px] text-gray-500 block">將來銀行 (代碼 823)</span>
-                            <span className="font-mono font-black text-lg text-gray-900 tracking-wider">8866 0930 7679 82</span>
-                        </div>
-                        <button type="button" onClick={copyBankInfo} className="bg-orange-100 text-orange-800 hover:bg-orange-200 text-xs px-3 py-2 rounded-lg font-bold transition-all">
-                            📋 複製帳號
-                        </button>
-                    </div>
-                </div>
-            );
-        };
-
         const BarcodeDisplayView = ({ codeToDisplay, onBack }) => {
             useEffect(() => {
                 if (codeToDisplay) {
@@ -179,17 +148,26 @@
                         <p className="text-gray-500 mb-6">請選擇您的報名身份</p>
 
                         <div className="flex flex-col gap-4">
-                            <button onClick={() => setPurchaseType('台大生')} className="bg-white border-2 border-red-800 text-red-800 rounded-2xl p-6 shadow-sm active:scale-95 transition-all text-left">
-                                <span className="block text-xl font-bold">台大教職員工生</span>
-                                <span className="text-sm font-bold bg-red-50 text-red-800 px-3 py-1 rounded-xl">NT$ 3,000</span>
+                            <button onClick={() => setPurchaseType('台大生')} className="bg-white border-2 border-red-800 text-red-800 rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center">
+                                <div>
+                                    <span className="block text-xl font-bold">台大教職員工生</span>
+                                    <span className="text-xs text-gray-500">僅需填寫學號</span>
+                                </div>
+                                <span className="text-sm font-bold bg-red-50 text-red-800 px-3 py-1.5 rounded-xl">NT$ 3,000</span>
                             </button>
-                            <button onClick={() => setPurchaseType('校外人士')} className="bg-white border-2 border-slate-600 text-slate-800 rounded-2xl p-6 shadow-sm active:scale-95 transition-all text-left">
-                                <span className="block text-xl font-bold">校外人士</span>
-                                <span className="text-sm font-bold bg-slate-100 text-slate-800 px-3 py-1 rounded-xl">NT$ 3,500</span>
+                            <button onClick={() => setPurchaseType('校外人士')} className="bg-white border-2 border-slate-600 text-slate-800 rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center">
+                                <div>
+                                    <span className="block text-xl font-bold">校外人士</span>
+                                    <span className="text-xs text-gray-500">需填寫手機號碼</span>
+                                </div>
+                                <span className="text-sm font-bold bg-slate-100 text-slate-800 px-3 py-1.5 rounded-xl">NT$ 3,500</span>
                             </button>
-                            <button onClick={() => setPurchaseType('單堂體驗')} className="bg-slate-800 text-white rounded-2xl p-6 shadow-sm active:scale-95 transition-all text-left">
-                                <span className="block text-xl font-bold">單堂體驗課</span>
-                                <span className="text-sm font-bold bg-slate-700 text-white px-3 py-1 rounded-xl">NT$ 500 / 堂</span>
+                            <button onClick={() => setPurchaseType('單堂體驗')} className="bg-slate-800 text-white rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center">
+                                <div>
+                                    <span className="block text-xl font-bold">單堂體驗課</span>
+                                    <span className="text-xs opacity-75">Single Trial Class</span>
+                                </div>
+                                <span className="text-sm font-bold bg-slate-700 text-white px-3 py-1.5 rounded-xl">NT$ 500 / 堂</span>
                             </button>
                         </div>
                     </div>
@@ -199,30 +177,36 @@
             return (
                 <div className="p-6 animate-fade-in bg-white min-h-screen">
                     <button onClick={() => setPurchaseType(null)} className="text-gray-500 mb-6">← 重新選擇身份</button>
-                    <h2 className="text-2xl font-bold text-slate-800 mb-4">{purchaseType} 報名表</h2>
                     
-                    <BankInfoBox />
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-slate-800">{purchaseType} 報名表</h2>
+                        <span className="text-sm font-bold bg-gray-100 text-slate-800 px-3 py-1.5 rounded-xl">
+                            {purchaseType === '台大生' ? 'NT$ 3,000' : purchaseType === '校外人士' ? 'NT$ 3,500' : 'NT$ 500 / 堂'}
+                        </span>
+                    </div>
 
                     <form onSubmit={(e) => { e.preventDefault(); submitToGAS(purchaseData, purchaseType); }} className="flex flex-col gap-4">
-                        <div><label className="block text-sm text-gray-700 mb-1 font-medium">姓名</label><input type="text" required className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg" value={purchaseData.name} onChange={(e) => setPurchaseData({...purchaseData, name: e.target.value})} /></div>
-                        
-                        <div><label className="block text-sm text-gray-700 mb-1 font-medium">手機號碼</label><input type="tel" required placeholder="09xxxxxxxx" className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg font-mono" value={purchaseData.phone} onChange={(e) => setPurchaseData({...purchaseData, phone: e.target.value})} /></div>
+                        <div>
+                            <label className="block text-sm text-gray-700 mb-1 font-medium">姓名</label>
+                            <input type="text" required className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg" value={purchaseData.name} onChange={(e) => setPurchaseData({...purchaseData, name: e.target.value})} />
+                        </div>
                         
                         {purchaseType === '台大生' ? (
-                            // 如果是台大生：只出現「學號」欄位
                             <div>
                                 <label className="block text-sm text-gray-700 mb-1 font-medium">學號</label>
-                                <input type="text" required placeholder="例如: B12345678" ... />
+                                <input type="text" required placeholder="例如: B12345678" className="w-full p-3.5 border border-gray-300 rounded-xl outline-none uppercase font-mono focus:border-slate-800 text-lg" value={purchaseData.studentId} onChange={(e) => setPurchaseData({...purchaseData, studentId: e.target.value.toUpperCase()})} />
                             </div>
                         ) : (
-                            // 如果不是台大生（校外人士、體驗生）：出現「手機號碼」欄位
                             <div>
                                 <label className="block text-sm text-gray-700 mb-1 font-medium">手機號碼</label>
-                                <input type="tel" required placeholder="09xxxxxxxx" ... />
+                                <input type="tel" required placeholder="09xxxxxxxx" className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg font-mono" value={purchaseData.phone} onChange={(e) => setPurchaseData({...purchaseData, phone: e.target.value})} />
                             </div>
-                         )}
+                        )}
                         
-                        <div><label className="block text-sm text-gray-700 mb-1 font-medium">匯款後五碼</label><input type="text" required maxLength={5} placeholder="請輸入帳號後五碼" className="w-full p-3.5 border border-gray-300 rounded-xl font-mono text-center tracking-widest text-lg outline-none focus:border-slate-800" value={purchaseData.last5} onChange={(e) => setPurchaseData({...purchaseData, last5: e.target.value})} /></div>
+                        <div>
+                            <label className="block text-sm text-gray-700 mb-1 font-medium">匯款後五碼</label>
+                            <input type="text" required maxLength={5} placeholder="請輸入帳號後五碼" className="w-full p-3.5 border border-gray-300 rounded-xl font-mono text-center tracking-widest text-lg outline-none focus:border-slate-800" value={purchaseData.last5} onChange={(e) => setPurchaseData({...purchaseData, last5: e.target.value})} />
+                        </div>
                         <button type="submit" disabled={loading} className="mt-4 w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg active:scale-95 transition-all disabled:opacity-50 shadow-md">{loading ? "提交中..." : "我已匯款，送出報名"}</button>
                     </form>
                 </div>
@@ -256,7 +240,8 @@
                     action: "register",
                     type: type,
                     name: data.name || "",
-                    studentId: data.studentId || "",
+                    phone: type === '台大生' ? "" : (data.phone || ""),
+                    studentId: type === '台大生' ? (data.studentId || "") : "",
                     last5: data.last5 || ""
                 };
 
@@ -273,7 +258,7 @@
                     setLoading(false); 
                     setSuccessCode(code);
                     setPage('success_barcode'); 
-                    setPurchaseData({ name: '', studentId: '', last5: '' });
+                    setPurchaseData({ name: '', studentId: '', phone: '', last5: '' });
                     fetchDatabase(); 
                 }, 1500);
             };
