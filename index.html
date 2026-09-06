@@ -44,6 +44,38 @@
             );
         };
 
+        // 匯款資訊卡片（具備一鍵複製功能）
+        const BankInfoBox = () => {
+            const copyBankInfo = () => {
+                const text = "88660930767982";
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try { document.execCommand('copy'); alert("已複製帳號：8866 0930 7679 82"); } catch (err) {}
+                document.body.removeChild(textArea);
+            };
+
+            return (
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-orange-900 text-sm flex items-center gap-1.5">
+                            <span>💳</span> 匯款資訊 (請先轉帳再送出表單)
+                        </span>
+                    </div>
+                    <div className="bg-white p-3.5 rounded-xl border border-orange-100 flex items-center justify-between shadow-inner">
+                        <div>
+                            <span className="text-[11px] text-gray-500 block">將來銀行 (代碼 823)</span>
+                            <span className="font-mono font-black text-lg text-gray-900 tracking-wider">8866 0930 7679 82</span>
+                        </div>
+                        <button type="button" onClick={copyBankInfo} className="bg-orange-100 text-orange-800 hover:bg-orange-200 text-xs px-3 py-2 rounded-lg font-bold transition-all">
+                            📋 複製帳號
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
         const BarcodeDisplayView = ({ codeToDisplay, onBack }) => {
             useEffect(() => {
                 if (codeToDisplay) {
@@ -151,21 +183,18 @@
                             <button onClick={() => setPurchaseType('台大生')} className="bg-white border-2 border-red-800 text-red-800 rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center">
                                 <div>
                                     <span className="block text-xl font-bold">台大教職員工生</span>
-                                    <span className="text-xs text-gray-500">僅需填寫學號</span>
                                 </div>
                                 <span className="text-sm font-bold bg-red-50 text-red-800 px-3 py-1.5 rounded-xl">NT$ 3,000</span>
                             </button>
                             <button onClick={() => setPurchaseType('校外人士')} className="bg-white border-2 border-slate-600 text-slate-800 rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center">
                                 <div>
                                     <span className="block text-xl font-bold">校外人士</span>
-                                    <span className="text-xs text-gray-500">需填寫手機號碼</span>
                                 </div>
                                 <span className="text-sm font-bold bg-slate-100 text-slate-800 px-3 py-1.5 rounded-xl">NT$ 3,500</span>
                             </button>
                             <button onClick={() => setPurchaseType('單堂體驗')} className="bg-slate-800 text-white rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center">
                                 <div>
                                     <span className="block text-xl font-bold">單堂體驗課</span>
-                                    <span className="text-xs opacity-75">Single Trial Class</span>
                                 </div>
                                 <span className="text-sm font-bold bg-slate-700 text-white px-3 py-1.5 rounded-xl">NT$ 500 / 堂</span>
                             </button>
@@ -178,12 +207,15 @@
                 <div className="p-6 animate-fade-in bg-white min-h-screen">
                     <button onClick={() => setPurchaseType(null)} className="text-gray-500 mb-6">← 重新選擇身份</button>
                     
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex justify-between items-center mb-4">
                         <h2 className="text-2xl font-bold text-slate-800">{purchaseType} 報名表</h2>
                         <span className="text-sm font-bold bg-gray-100 text-slate-800 px-3 py-1.5 rounded-xl">
                             {purchaseType === '台大生' ? 'NT$ 3,000' : purchaseType === '校外人士' ? 'NT$ 3,500' : 'NT$ 500 / 堂'}
                         </span>
                     </div>
+
+                    {/* 在這裡個別加入匯款資訊框 */}
+                    <BankInfoBox />
 
                     <form onSubmit={(e) => { e.preventDefault(); submitToGAS(purchaseData, purchaseType); }} className="flex flex-col gap-4">
                         <div>
