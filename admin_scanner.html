@@ -87,7 +87,7 @@
                 <button onclick="toggleDebug()" class="text-red-800 hover:underline font-bold">🔍 檢查資料庫讀取狀態</button>
             </div>
             <p>1. 游標會自動保持在框內等待，可使用掃描槍或是手動輸入。</p>
-            <p>2. 可查核該學員姓名，同時提供本學期第幾次出席。</p>
+            <p>2. 可查核該學員姓名，同時提供今日第幾次出席。</p>
             
             <!-- 除錯清單面板 -->
             <div id="debugPanel" class="hidden mt-3 p-3 bg-white border border-gray-300 rounded-xl max-h-48 overflow-y-auto font-mono text-[11px] text-gray-700">
@@ -99,17 +99,13 @@
 
     <script>
         // ==========================================
-        // 幹部端設定區（已對應您最新的正確 Apps Script 與表單）
+        // 幹部端雙後台設定區（已完美串接）
         // ==========================================
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXCpevzVobMqATxDTi5CVl0c2VsHUmlUbolWhBTd0fAcd3HcUYZ-gfsRrv-fmmlnlO/exec"; 
-        const CHECKIN_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSeeY28dEnSp_oXMDFJPORV7I-XZQzc6kuklSk8dEEscRKYXFQ/formResponse";
+        // 後台 1：學員資料庫（抓取報名名單與身分）
+        const MEMBER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxWeEsxwIqYKpWGsV7Rw1CRiGDd4B2spGRP1S0Y0rw1nBcaAsFhBuprkVe4xBV5193C/exec"; 
         
-        const FORM_FIELDS = {
-            code: "entry.336311315", 
-            name: "entry.1670634759", 
-            type: "entry.750019576", 
-            time: "entry.128880278"  
-        };
+        // 後台 2：打卡行為與點名紀錄資料庫（計算今日人數與寫入打卡，支援每日過 24 點自動歸零）
+        const ATTENDANCE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzuLB70_wBX7PQ22uwzS0dAFZOkomHVww-PWSduUGnS1A49ZTBGzjnmQa8zCoCxzM4m/exec";
         // ==========================================
 
         const inputField = document.getElementById('barcodeInput');
@@ -136,10 +132,11 @@
             }
         });
 
+        // 從「後台 2」讀取今日累計人數
         async function loadTodayCount() {
-            if (!GOOGLE_SCRIPT_URL.includes("http")) return;
+            if (!ATTENDANCE_SCRIPT_URL.includes("http")) return;
             try {
-                const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
+                const res = await fetch(ATTENDANCE_SCRIPT_URL + "?t=" + new Date().getTime());
                 const data = await res.json();
                 if (data && data.success && data.attendance) {
                     let total = Object.values(data.attendance).reduce((a, b) => a + b, 0);
@@ -154,16 +151,21 @@
             showStatus("正在驗證學員身分...", "info");
             
             try {
-                const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
-                const data = await res.json();
+                // 1. 從「後台 1」取得學員名單來驗證身分
+                const memberRes = await fetch(MEMBER_SCRIPT_URL + "?t=" + new Date().getTime());
+                const memberData = await memberRes.json();
                 
-                if (!data.success) {
-                    showStatus("⚠️ 資料庫讀取異常: " + (data.error || "未知錯誤"), "error");
+                if (!memberData.success) {
+                    showStatus("⚠️ 學員資料庫讀取異常", "error");
                     return;
                 }
 
-                const members = data.members || [];
-                const attendance = data.attendance || {};
+                // 2. 從「後台 2」取得今日出席次數統計
+                const attRes = await fetch(ATTENDANCE_SCRIPT_URL + "?t=" + new Date().getTime());
+                const attData = await attRes.json();
+
+                const members = memberData.members || [];
+                const attendance = attData.success ? (attData.attendance || {}) : {};
 
                 const cleanInput = code.replace(/^['"]+|['"]+$/g, '').toUpperCase();
 
@@ -175,7 +177,7 @@
                 });
 
                 if (!matchedMember) {
-                    showStatus(`❌ 查無此識別碼 (${code})，請確認是否購課或重新輸入！`, "error");
+                    showStatus(`❌ 查無此識別碼 (${code})，請確認是否已完成購課登記！`, "error");
                     resultCard.classList.add('hidden');
                     return;
                 }
@@ -183,25 +185,13 @@
                 const name = matchedMember.name || "未知姓名";
                 const type = matchedMember.type || "一般學員";
                 
-                // 計算這是本學期第幾次出席
+                // 計算這是今天第幾次出席
                 const visitCount = (attendance[cleanInput] || 0) + 1;
                 const nowTime = new Date().toLocaleString();
 
-                if (CHECKIN_FORM_URL.includes("http")) {
-                    const formData = new URLSearchParams();
-                    formData.append(FORM_FIELDS.code, code);
-                    formData.append(FORM_FIELDS.name, name);
-                    formData.append(FORM_FIELDS.type, type);
-                    formData.append(FORM_FIELDS.time, nowTime);
-
-                    fetch(CHECKIN_FORM_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        body: formData
-                    }).catch(e => console.log("Form submit note:", e));
-
-                    // 同時通知 GAS 記錄
-                    fetch(GOOGLE_SCRIPT_URL, {
+                // 3. 將打卡紀錄寫入「後台 2」
+                if (ATTENDANCE_SCRIPT_URL.includes("http")) {
+                    fetch(ATTENDANCE_SCRIPT_URL, {
                         method: 'POST',
                         mode: 'no-cors',
                         headers: { 'Content-Type': 'application/json' },
@@ -210,7 +200,7 @@
                             identity: type,
                             name: name,
                             code: code,
-                            status: `🟢 第 ${visitCount} 次出席`
+                            status: `🟢 今日第 ${visitCount} 次出席`
                         })
                     }).catch(e => console.log("GAS log note:", e));
                 }
@@ -219,7 +209,7 @@
                 
                 document.getElementById('resName').innerText = name;
                 document.getElementById('resType').innerText = type;
-                document.getElementById('resCount').innerText = `本學期第 ${visitCount} 次出席`;
+                document.getElementById('resCount').innerText = `今日第 ${visitCount} 次出席`;
                 document.getElementById('scanTime').innerText = `簽到時間：${nowTime}`;
                 
                 const badge = document.getElementById('resultBadge');
@@ -227,21 +217,22 @@
                 badge.innerText = "打卡成功";
 
                 resultCard.classList.remove('hidden');
-                loadTodayCount();
+                loadTodayCount(); // 重新整理右上角累計人數
 
             } catch (err) {
                 console.error(err);
-                showStatus("⚠️ 讀取或連線發生錯誤，請檢查網路與 Apps Script 部署權限設定（須設為任何人）。", "error");
+                showStatus("⚠️ 讀取或連線發生錯誤，請檢查網路與 Apps Script 部署權限設定。", "error");
             }
         }
 
+        // 點擊除錯按鈕時，檢查「後台 1」的學員名單
         async function toggleDebug() {
             const panel = document.getElementById('debugPanel');
             panel.classList.toggle('hidden');
             if (!panel.classList.contains('hidden')) {
-                panel.innerText = "正在透過 Apps Script API 讀取會員資料庫...";
+                panel.innerText = "正在從「後台 1（學員資料庫）」讀取會員資料...";
                 try {
-                    const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
+                    const res = await fetch(MEMBER_SCRIPT_URL + "?t=" + new Date().getTime());
                     const data = await res.json();
                     
                     if (!data.success) {
@@ -252,16 +243,16 @@
                     const members = data.members || [];
                     
                     if (!Array.isArray(members) || members.length === 0) {
-                        panel.innerText = "⚠️ 讀取到的會員資料是空的，請確認 Apps Script 部署與試算表是否有資料！";
+                        panel.innerText = "⚠️ 讀取到的會員資料是空的，請確認後台 1 試算表是否有資料！";
                     } else {
-                        let info = `✅ 成功透過 Apps Script 載入 ${members.length} 筆會員資料：\n`;
+                        let info = `✅ 成功載入 ${members.length} 筆已購課學員資料：\n`;
                         members.forEach((m, idx) => {
                             info += `[${idx+1}] 姓名: ${m.name} | 身分: ${m.type} | 手機: ${m.phone} | 學號: ${m.studentId}\n`;
                         });
                         panel.innerText = info;
                     }
                 } catch (e) {
-                    panel.innerText = "❌ 讀取失敗，錯誤訊息：" + e.message + " (請確認 Apps Script 存取權限設為「任何人」)";
+                    panel.innerText = "❌ 讀取失敗，錯誤訊息：" + e.message;
                 }
             }
         }
