@@ -80,6 +80,37 @@
             );
         };
 
+        const BankInfoBox = () => {
+            const copyBankInfo = () => {
+                const text = "88660930767982";
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try { document.execCommand('copy'); alert("已複製帳號：8866 0930 7679 82"); } catch (err) {}
+                document.body.removeChild(textArea);
+            };
+
+            return (
+                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="font-bold text-orange-900 text-sm flex items-center gap-1.5">
+                            <span>💳</span> 匯款資訊 (請先轉帳再送出表單)
+                        </span>
+                    </div>
+                    <div className="bg-white p-3.5 rounded-xl border border-orange-100 flex items-center justify-between shadow-inner">
+                        <div>
+                            <span className="text-[11px] text-gray-500 block">將來銀行 (代碼 823)</span>
+                            <span className="font-mono font-black text-lg text-gray-900 tracking-wider">8866 0930 7679 82</span>
+                        </div>
+                        <button type="button" onClick={copyBankInfo} className="bg-orange-100 text-orange-800 hover:bg-orange-200 text-xs px-3 py-2 rounded-lg font-bold transition-all">
+                            📋 複製帳號
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
         const BarcodeGenPage = ({ setPage, membersDb }) => {
             const [inputValue, setInputValue] = useState('');
             const [searchedCode, setSearchedCode] = useState(null);
@@ -178,6 +209,8 @@
                             {purchaseType === '台大生' ? 'NT$ 3,000' : purchaseType === '校外人士' ? 'NT$ 3,500' : 'NT$ 500 / 堂'}
                         </span>
                     </div>
+
+                    <BankInfoBox/>
 
                     <form onSubmit={(e) => { e.preventDefault(); submitToGAS(purchaseData, purchaseType); }} className="flex flex-col gap-4">
                         <div>
