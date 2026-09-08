@@ -1,393 +1,270 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>台大拳擊社 | 學員服務</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 產生條碼的套件 -->
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f3f4f6;}
-        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fade-in 0.3s ease-out; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>台大拳擊社 | 學員服務</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f3f4f6;}
+@keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+</style>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <div id="root"></div>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
 
-    <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
-        
-        // 串接您確認成功的正確 Google Apps Script 網址
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxWeEsxwIqYKpWGsV7Rw1CRiGDd4B2spGRP1S0Y0rw1nBcaAsFhBuprkVe4xBV5193C/exec";
-        const LINE_GROUP_URL = "https://line.me/ti/g/KF2EaMhSs-#~";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzy3Zr7i6oUGYB-tGbW_Xwv5kl_k_M_unBFgPj4SE7miK1cGQOfZ2JzylyQlqjIOO9O/exec";
+const LINE_GROUP_URL = "https://line.me/ti/g/KF2EaMhSs-#~";
 
-        const normalizeString = (str) => String(str || '').trim().toUpperCase();
+const normalizeString = (str) => String(str || '').trim().toUpperCase();
 
-        const Header = () => (
-            <div className="bg-red-800 text-white p-4 shadow-md flex items-center justify-center sticky top-0 z-10">
-                <h1 className="text-xl font-bold tracking-wider">NTU BOXING</h1>
-            </div>
-        );
+const Header = () => (
+<div className="bg-red-800 text-white p-4 shadow-md flex items-center justify-center sticky top-0 z-10">
+<h1 className="text-xl font-bold tracking-wider">NTU BOXING</h1>
+</div>
+);
 
-        const Toast = ({ message, type }) => {
-            if (!message) return null;
-            const bg = type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800';
-            return (
-                <div className={`p-4 rounded-xl border text-sm font-medium mb-4 ${bg}`}>
-                    {message}
-                </div>
-            );
-        };
+const Toast = ({ message, type }) => {
+if (!message) return null;
+const bg = type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800';
+return <div className={`p-4 rounded-xl border text-sm font-medium mb-4 ${bg}`}>{message}</div>;
+};
 
-        // 匯款資訊卡片（具備一鍵複製功能）
-        const BankInfoBox = () => {
-            const copyBankInfo = () => {
-                const text = "88660930767982";
-                const textArea = document.createElement("textarea");
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                try { document.execCommand('copy'); alert("已複製帳號：8866 0930 7679 82"); } catch (err) {}
-                document.body.removeChild(textArea);
-            };
+const BankInfoBox = () => {
+const copyBankInfo = () => {
+const text = "88660930767982";
+const textArea = document.createElement("textarea");
+textArea.value = text;
+document.body.appendChild(textArea);
+textArea.select();
+try { document.execCommand('copy'); alert("已複製帳號：8866 0930 7679 82"); } catch (err) {}
+document.body.removeChild(textArea);
+};
+return (
+<div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 shadow-sm">
+<div className="flex items-center justify-between mb-2">
+<span className="font-bold text-orange-900 text-sm flex items-center gap-1.5"><span>💳</span> 匯款資訊 (請先轉帳再送出表單)</span>
+</div>
+<div className="bg-white p-3.5 rounded-xl border border-orange-100 flex items-center justify-between shadow-inner">
+<div>
+<span className="text-[11px] text-gray-500 block">將來銀行 (代碼 823)</span>
+<span className="font-mono font-black text-lg text-gray-900 tracking-wider">8866 0930 7679 82</span>
+</div>
+<button type="button" onClick={copyBankInfo} className="bg-orange-100 text-orange-800 hover:bg-orange-200 text-xs px-3 py-2 rounded-lg font-bold transition-all">📋 複製帳號</button>
+</div>
+</div>
+);
+};
 
-            return (
-                <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-orange-900 text-sm flex items-center gap-1.5">
-                            <span>💳</span> 匯款資訊 (請先轉帳再送出表單)
-                        </span>
-                    </div>
-                    <div className="bg-white p-3.5 rounded-xl border border-orange-100 flex items-center justify-between shadow-inner">
-                        <div>
-                            <span className="text-[11px] text-gray-500 block">將來銀行 (代碼 823)</span>
-                            <span className="font-mono font-black text-lg text-gray-900 tracking-wider">8866 0930 7679 82</span>
-                        </div>
-                        <button type="button" onClick={copyBankInfo} className="bg-orange-100 text-orange-800 hover:bg-orange-200 text-xs px-3 py-2 rounded-lg font-bold transition-all">
-                            📋 複製帳號
-                        </button>
-                    </div>
-                </div>
-            );
-        };
+const BarcodeDisplayView = ({ codeToDisplay, onBack }) => {
+useEffect(() => {
+if (codeToDisplay) {
+JsBarcode("#barcode", codeToDisplay, { format:"CODE128", lineColor:"#000", width:3, height:100, displayValue:false, margin:10 });
+}
+}, [codeToDisplay]);
+return (
+<div className="p-6 animate-fade-in flex flex-col items-center bg-white min-h-screen">
+{onBack && <button onClick={onBack} className="self-start text-gray-500 mb-6 hover:text-red-800 font-bold">← 返回首頁</button>}
+<div className="w-full text-left mb-6">
+<h2 className="text-2xl font-bold text-gray-800 mb-2">您的專屬入場條碼</h2>
+<p className="text-sm text-gray-500">識別碼：<span className="font-mono font-bold text-slate-800">{codeToDisplay}</span></p>
+</div>
+<div className="w-full flex flex-col items-center bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-300">
+<p className="text-red-800 font-bold mb-4">🎉 請將此畫面截圖保存！</p>
+<div className="bg-white p-4 rounded-xl shadow-sm mb-4"><svg id="barcode"></svg></div>
+<p className="text-sm text-gray-500 text-center mb-6">入場時出示此條碼，給幹部掃描即可。</p>
+<div className="w-full bg-blue-50 border border-blue-200 p-4 rounded-xl mb-6 text-center">
+<p className="font-bold text-blue-800 mb-1">加入社員私人群組</p>
+<p className="text-xs text-blue-700 mb-3">請務必加入以獲取社課最新資訊</p>
+<a href={LINE_GROUP_URL} target="_blank" rel="noopener noreferrer" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-full font-bold text-sm shadow hover:bg-blue-700">點擊加入 LINE 群組</a>
+</div>
+</div>
+</div>
+);
+};
 
-        const BarcodeDisplayView = ({ codeToDisplay, onBack }) => {
-            useEffect(() => {
-                if (codeToDisplay) {
-                    JsBarcode("#barcode", codeToDisplay, {
-                        format: "CODE128", lineColor: "#000", width: 3, height: 100, 
-                        displayValue: false, 
-                        margin: 10
-                    });
-                }
-            }, [codeToDisplay]);
+const BarcodeGenPage = ({ setPage, lookupMember }) => {
+const [inputValue, setInputValue] = useState('');
+const [searchedCode, setSearchedCode] = useState(null);
+const [errorMsg, setErrorMsg] = useState('');
+const [searching, setSearching] = useState(false);
 
-            return (
-                <div className="p-6 animate-fade-in flex flex-col items-center bg-white min-h-screen">
-                    {onBack && (
-                        <button onClick={onBack} className="self-start text-gray-500 mb-6 hover:text-red-800 font-bold">← 返回首頁</button>
-                    )}
-                    <div className="w-full text-left mb-6">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">您的專屬入場條碼</h2>
-                        <p className="text-sm text-gray-500">識別碼：<span className="font-mono font-bold text-slate-800">{codeToDisplay}</span></p>
-                    </div>
+const handleGenerate = async (e) => {
+e.preventDefault();
+setErrorMsg('');
+if (!inputValue || searching) return;
+const cleanCode = normalizeString(inputValue);
+setSearching(true);
+try {
+const data = await lookupMember(cleanCode);
+if (!data || !data.success || !data.member) {
+setErrorMsg("查無購課紀錄！系統找不到此學號/手機。請確認您是否已完成「購買課程」登記，或稍等幾分鐘讓後台同步。");
+return;
+}
+const memberCode = normalizeString(data.member.studentId || data.member.phone || cleanCode);
+setSearchedCode(memberCode);
+} catch (err) {
+console.error("資料庫查詢失敗", err);
+setErrorMsg("目前無法連線到資料庫，請稍後再試。");
+} finally {
+setSearching(false);
+}
+};
 
-                    <div className="w-full flex flex-col items-center bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-300">
-                        <p className="text-red-800 font-bold mb-4">🎉 請將此畫面截圖保存！</p>
-                        <div className="bg-white p-4 rounded-xl shadow-sm mb-4"><svg id="barcode"></svg></div>
-                        <p className="text-sm text-gray-500 text-center mb-6">入場時出示此條碼，給幹部掃描即可。</p>
-                        
-                        <div className="w-full bg-blue-50 border border-blue-200 p-4 rounded-xl mb-6 text-center">
-                            <p className="font-bold text-blue-800 mb-1">加入社員私人群組</p>
-                            <p className="text-xs text-blue-700 mb-3">請務必加入以獲取社課最新資訊</p>
-                            <a href={LINE_GROUP_URL} target="_blank" rel="noopener noreferrer" className="inline-block bg-blue-600 text-white px-6 py-2 rounded-full font-bold text-sm shadow hover:bg-blue-700">點擊加入 LINE 群組</a>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
+if (searchedCode) return (
+<div className="bg-white min-h-screen flex flex-col">
+<div className="p-6 pb-0"><button onClick={() => setSearchedCode(null)} className="text-gray-500 font-bold hover:text-red-800">← 重新查詢</button></div>
+<BarcodeDisplayView codeToDisplay={searchedCode} onBack={() => setPage('home')} />
+</div>
+);
 
-        const BarcodeGenPage = ({ setPage, lookupMember }) => {
-            const [inputValue, setInputValue] = useState('');
-            const [searchedCode, setSearchedCode] = useState(null);
-            const [errorMsg, setErrorMsg] = useState('');
-            const [searching, setSearching] = useState(false);
+return (
+<div className="p-6 animate-fade-in flex flex-col items-center bg-white min-h-screen">
+<button onClick={() => setPage('home')} className="self-start text-gray-500 mb-6 hover:text-red-800 font-bold">← 返回首頁</button>
+<div className="w-full text-left">
+<h2 className="text-2xl font-bold text-gray-800 mb-2">獲取入場條碼</h2>
+<p className="text-sm text-gray-500 mb-6">請輸入學號 (台大生) 或手機號碼 (校外/體驗)</p>
+</div>
+<Toast message={errorMsg} type="error" />
+<form onSubmit={handleGenerate} className="w-full flex flex-col gap-4">
+<input type="text" required placeholder="例如：B13504099 或 0912345678" className="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-center text-lg uppercase tracking-wider focus:border-red-800 outline-none" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+<button type="submit" disabled={searching} className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg shadow-md hover:bg-slate-900 active:scale-95 transition-all disabled:opacity-50">{searching ? "查詢中..." : "驗證並產生條碼"}</button>
+</form>
+</div>
+);
+};
 
-            const handleGenerate = async (e) => {
-                e.preventDefault();
-                setErrorMsg('');
-                if (!inputValue || searching) return;
+const PurchaseForms = ({ setPage, purchaseData, setPurchaseData, loading, submitToGAS }) => {
+const [purchaseType, setPurchaseType] = useState(null);
+if (!purchaseType) return (
+<div className="p-6 animate-fade-in bg-white min-h-screen">
+<button onClick={() => setPage('home')} className="text-gray-500 mb-6 font-bold">← 返回</button>
+<h2 className="text-2xl font-bold text-gray-800 mb-2">購買課程</h2>
+<p className="text-gray-500 mb-6">請選擇您的報名身份</p>
+<div className="flex flex-col gap-4">
+<button onClick={() => setPurchaseType('台大生')} className="bg-white border-2 border-red-800 text-red-800 rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center"><div><span className="block text-xl font-bold">台大教職員工生</span></div><span className="text-sm font-bold bg-red-50 text-red-800 px-3 py-1.5 rounded-xl">NT$ 3,000</span></button>
+<button onClick={() => setPurchaseType('校外人士')} className="bg-white border-2 border-slate-600 text-slate-800 rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center"><div><span className="block text-xl font-bold">校外人士</span></div><span className="text-sm font-bold bg-slate-100 text-slate-800 px-3 py-1.5 rounded-xl">NT$ 3,500</span></button>
+<button onClick={() => setPurchaseType('單堂體驗')} className="bg-slate-800 text-white rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center"><div><span className="block text-xl font-bold">單堂體驗課</span></div><span className="text-sm font-bold bg-slate-700 text-white px-3 py-1.5 rounded-xl">NT$ 500 / 堂</span></button>
+</div>
+</div>
+);
 
-                const cleanCode = normalizeString(inputValue);
-                setSearching(true);
+return (
+<div className="p-6 animate-fade-in bg-white min-h-screen">
+<button onClick={() => setPurchaseType(null)} className="text-gray-500 mb-6">← 重新選擇身份</button>
+<div className="flex justify-between items-center mb-4">
+<h2 className="text-2xl font-bold text-slate-800">{purchaseType} 報名表</h2>
+<span className="text-sm font-bold bg-gray-100 text-slate-800 px-3 py-1.5 rounded-xl">{purchaseType === '台大生' ? 'NT$ 3,000' : purchaseType === '校外人士' ? 'NT$ 3,500' : 'NT$ 500 / 堂'}</span>
+</div>
+<BankInfoBox />
+<form onSubmit={(e) => { e.preventDefault(); submitToGAS(purchaseData, purchaseType); }} className="flex flex-col gap-4">
+<div><label className="block text-sm text-gray-700 mb-1 font-medium">姓名</label><input type="text" required className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg" value={purchaseData.name} onChange={(e) => setPurchaseData({...purchaseData, name:e.target.value})} /></div>
+{purchaseType === '台大生' ? (
+<div><label className="block text-sm text-gray-700 mb-1 font-medium">學號</label><input type="text" required placeholder="例如: B12345678" className="w-full p-3.5 border border-gray-300 rounded-xl outline-none uppercase font-mono focus:border-slate-800 text-lg" value={purchaseData.studentId} onChange={(e) => setPurchaseData({...purchaseData, studentId:e.target.value.toUpperCase()})} /></div>
+) : (
+<div><label className="block text-sm text-gray-700 mb-1 font-medium">手機號碼</label><input type="tel" required placeholder="09xxxxxxxx" className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg font-mono" value={purchaseData.phone} onChange={(e) => setPurchaseData({...purchaseData, phone:e.target.value})} /></div>
+)}
+<div><label className="block text-sm text-gray-700 mb-1 font-medium">匯款後五碼</label><input type="text" required maxLength={5} placeholder="請輸入帳號後五碼" className="w-full p-3.5 border border-gray-300 rounded-xl font-mono text-center tracking-widest text-lg outline-none focus:border-slate-800" value={purchaseData.last5} onChange={(e) => setPurchaseData({...purchaseData, last5:e.target.value})} /></div>
+<button type="submit" disabled={loading} className="mt-4 w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg active:scale-95 transition-all disabled:opacity-50 shadow-md">{loading ? "提交中..." : "我已匯款，送出報名"}</button>
+</form>
+</div>
+);
+};
 
-                try {
-                    const data = await lookupMember(cleanCode);
+function App() {
+const [page, setPage] = useState('home');
+const [loading, setLoading] = useState(false);
+const [purchaseData, setPurchaseData] = useState({name:'', studentId:'', phone:'', last5:''});
+const [successCode, setSuccessCode] = useState('');
 
-                    if (!data || !data.success || !data.member) {
-                        setErrorMsg("查無購課紀錄！系統找不到此學號/手機。請確認您是否已完成「購買課程」登記，或稍等幾分鐘讓後台同步。");
-                        return;
-                    }
+const lookupMember = useCallback((keyword) => new Promise((resolve, reject) => {
+const callbackName = "__ntuBoxingLookup_" + Date.now() + "_" + Math.floor(Math.random()*100000);
+const script = document.createElement("script");
+let finished = false;
+let timeout;
+const cleanup = () => {
+if (finished) return;
+finished = true;
+clearTimeout(timeout);
+delete window[callbackName];
+if (script.parentNode) script.parentNode.removeChild(script);
+};
+timeout = setTimeout(() => { cleanup(); reject(new Error("查詢逾時")); }, 10000);
+window[callbackName] = (data) => { cleanup(); resolve(data); };
+script.onerror = () => { cleanup(); reject(new Error("資料庫查詢失敗")); };
+script.src = GOOGLE_SCRIPT_URL + "?action=find&keyword=" + encodeURIComponent(keyword) + "&callback=" + encodeURIComponent(callbackName) + "&t=" + Date.now();
+document.body.appendChild(script);
+}), []);
 
-                    // 條碼仍使用學員實際的學號／手機號碼，不改變原本顯示方式。
-                    const memberCode = normalizeString(
-                        data.member.studentId || data.member.phone || cleanCode
-                    );
-                    setSearchedCode(memberCode);
-                } catch (err) {
-                    console.error("資料庫查詢失敗", err);
-                    setErrorMsg("目前無法連線到資料庫，請稍後再試。");
-                } finally {
-                    setSearching(false);
-                }
-            };
+const submitToGAS = async (data, type) => {
+setLoading(true);
+const code = type === '台大生' ? data.studentId : data.phone;
+try {
+let iframe = document.getElementById("gas-submit-frame");
+if (!iframe) {
+iframe = document.createElement("iframe");
+iframe.id = "gas-submit-frame";
+iframe.name = "gas-submit-frame";
+iframe.style.display = "none";
+document.body.appendChild(iframe);
+}
+const form = document.createElement("form");
+form.method = "POST";
+form.action = GOOGLE_SCRIPT_URL;
+form.target = "gas-submit-frame";
+form.style.display = "none";
+const payload = {action:"register", type:type, name:data.name || "", phone:type === '台大生' ? "" : (data.phone || ""), studentId:type === '台大生' ? (data.studentId || "") : "", last5:data.last5 || ""};
+Object.entries(payload).forEach(([key,value]) => {
+const input = document.createElement("input");
+input.type = "hidden";
+input.name = key;
+input.value = value;
+form.appendChild(input);
+});
+document.body.appendChild(form);
+form.submit();
+form.remove();
+} catch(e) {
+console.error("資料送出失敗", e);
+setLoading(false);
+alert("資料送出失敗，請稍後再試。");
+return;
+}
+setTimeout(() => {
+setLoading(false);
+setSuccessCode(code);
+setPage('success_barcode');
+setPurchaseData({name:'', studentId:'', phone:'', last5:''});
+}, 1200);
+};
 
-            if (searchedCode) {
-                return (
-                    <div className="bg-white min-h-screen flex flex-col">
-                        <div className="p-6 pb-0">
-                            <button onClick={() => setSearchedCode(null)} className="text-gray-500 font-bold hover:text-red-800">← 重新查詢</button>
-                        </div>
-                        <BarcodeDisplayView codeToDisplay={searchedCode} onBack={() => setPage('home')} />
-                    </div>
-                );
-            }
-
-            return (
-                <div className="p-6 animate-fade-in flex flex-col items-center bg-white min-h-screen">
-                    <button onClick={() => setPage('home')} className="self-start text-gray-500 mb-6 hover:text-red-800 font-bold">← 返回首頁</button>
-                    <div className="w-full text-left">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">獲取入場條碼</h2>
-                        <p className="text-sm text-gray-500 mb-6">請輸入學號 (台大生) 或手機號碼 (校外/體驗)</p>
-                    </div>
-                    
-                    <Toast message={errorMsg} type="error" />
-
-                    <form onSubmit={handleGenerate} className="w-full flex flex-col gap-4">
-                        <input 
-                            type="text" required placeholder="例如：B13504099 或 0912345678" 
-                            className="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-center text-lg uppercase tracking-wider focus:border-red-800 outline-none"
-                            value={inputValue} onChange={(e) => setInputValue(e.target.value)} 
-                        />
-                        <button type="submit" disabled={searching} className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg shadow-md hover:bg-slate-900 active:scale-95 transition-all disabled:opacity-50">{searching ? "查詢中..." : "驗證並產生條碼"}</button>
-                    </form>
-                </div>
-            );
-        };
-
-        const PurchaseForms = ({ setPage, purchaseData, setPurchaseData, loading, submitToGAS }) => {
-            const [purchaseType, setPurchaseType] = useState(null); 
-
-            if (!purchaseType) {
-                return (
-                    <div className="p-6 animate-fade-in bg-white min-h-screen">
-                        <button onClick={() => setPage('home')} className="text-gray-500 mb-6 font-bold">← 返回</button>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">購買課程</h2>
-                        <p className="text-gray-500 mb-6">請選擇您的報名身份</p>
-
-                        <div className="flex flex-col gap-4">
-                            <button onClick={() => setPurchaseType('台大生')} className="bg-white border-2 border-red-800 text-red-800 rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center">
-                                <div>
-                                    <span className="block text-xl font-bold">台大教職員工生</span>
-                                </div>
-                                <span className="text-sm font-bold bg-red-50 text-red-800 px-3 py-1.5 rounded-xl">NT$ 3,000</span>
-                            </button>
-                            <button onClick={() => setPurchaseType('校外人士')} className="bg-white border-2 border-slate-600 text-slate-800 rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center">
-                                <div>
-                                    <span className="block text-xl font-bold">校外人士</span>
-                                </div>
-                                <span className="text-sm font-bold bg-slate-100 text-slate-800 px-3 py-1.5 rounded-xl">NT$ 3,500</span>
-                            </button>
-                            <button onClick={() => setPurchaseType('單堂體驗')} className="bg-slate-800 text-white rounded-2xl p-5 shadow-sm active:scale-95 transition-all text-left flex justify-between items-center">
-                                <div>
-                                    <span className="block text-xl font-bold">單堂體驗課</span>
-                                </div>
-                                <span className="text-sm font-bold bg-slate-700 text-white px-3 py-1.5 rounded-xl">NT$ 500 / 堂</span>
-                            </button>
-                        </div>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="p-6 animate-fade-in bg-white min-h-screen">
-                    <button onClick={() => setPurchaseType(null)} className="text-gray-500 mb-6">← 重新選擇身份</button>
-                    
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold text-slate-800">{purchaseType} 報名表</h2>
-                        <span className="text-sm font-bold bg-gray-100 text-slate-800 px-3 py-1.5 rounded-xl">
-                            {purchaseType === '台大生' ? 'NT$ 3,000' : purchaseType === '校外人士' ? 'NT$ 3,500' : 'NT$ 500 / 堂'}
-                        </span>
-                    </div>
-
-                    {/* 在這裡個別加入匯款資訊框 */}
-                    <BankInfoBox />
-
-                    <form onSubmit={(e) => { e.preventDefault(); submitToGAS(purchaseData, purchaseType); }} className="flex flex-col gap-4">
-                        <div>
-                            <label className="block text-sm text-gray-700 mb-1 font-medium">姓名</label>
-                            <input type="text" required className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg" value={purchaseData.name} onChange={(e) => setPurchaseData({...purchaseData, name: e.target.value})} />
-                        </div>
-                        
-                        {purchaseType === '台大生' ? (
-                            <div>
-                                <label className="block text-sm text-gray-700 mb-1 font-medium">學號</label>
-                                <input type="text" required placeholder="例如: B12345678" className="w-full p-3.5 border border-gray-300 rounded-xl outline-none uppercase font-mono focus:border-slate-800 text-lg" value={purchaseData.studentId} onChange={(e) => setPurchaseData({...purchaseData, studentId: e.target.value.toUpperCase()})} />
-                            </div>
-                        ) : (
-                            <div>
-                                <label className="block text-sm text-gray-700 mb-1 font-medium">手機號碼</label>
-                                <input type="tel" required placeholder="09xxxxxxxx" className="w-full p-3.5 border border-gray-300 rounded-xl outline-none focus:border-slate-800 text-lg font-mono" value={purchaseData.phone} onChange={(e) => setPurchaseData({...purchaseData, phone: e.target.value})} />
-                            </div>
-                        )}
-                        
-                        <div>
-                            <label className="block text-sm text-gray-700 mb-1 font-medium">匯款後五碼</label>
-                            <input type="text" required maxLength={5} placeholder="請輸入帳號後五碼" className="w-full p-3.5 border border-gray-300 rounded-xl font-mono text-center tracking-widest text-lg outline-none focus:border-slate-800" value={purchaseData.last5} onChange={(e) => setPurchaseData({...purchaseData, last5: e.target.value})} />
-                        </div>
-                        <button type="submit" disabled={loading} className="mt-4 w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg active:scale-95 transition-all disabled:opacity-50 shadow-md">{loading ? "提交中..." : "我已匯款，送出報名"}</button>
-                    </form>
-                </div>
-            );
-        };
-
-        function App() {
-            const [page, setPage] = useState('home');
-            const [loading, setLoading] = useState(false);
-            const [purchaseData, setPurchaseData] = useState({ name: '', studentId: '', phone: '', last5: '' });
-            const [membersDb] = useState([]); // 保留原本狀態名稱，避免影響其他版面程式
-            const [successCode, setSuccessCode] = useState('');
-
-            // 不直接把整張 Sheet 下載到瀏覽器；查詢時才向 Apps Script 查單筆資料。
-            const lookupMember = useCallback((keyword) => {
-                return new Promise((resolve, reject) => {
-                    const callbackName = "__ntuBoxingLookup_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
-                    const script = document.createElement("script");
-                    const timeout = setTimeout(() => {
-                        cleanup();
-                        reject(new Error("查詢逾時"));
-                    }, 10000);
-
-                    const cleanup = () => {
-                        clearTimeout(timeout);
-                        delete window[callbackName];
-                        if (script.parentNode) script.parentNode.removeChild(script);
-                    };
-
-                    window[callbackName] = (data) => {
-                        cleanup();
-                        resolve(data);
-                    };
-
-                    script.onerror = () => {
-                        cleanup();
-                        reject(new Error("資料庫查詢失敗"));
-                    };
-
-                    script.src = GOOGLE_SCRIPT_URL
-                        + "?action=find&keyword=" + encodeURIComponent(keyword)
-                        + "&callback=" + encodeURIComponent(callbackName)
-                        + "&t=" + Date.now();
-
-                    document.body.appendChild(script);
-                });
-            }, []);
-
-            const submitToGAS = async (data, type) => {
-                setLoading(true);
-                const code = type === '台大生' ? data.studentId : data.phone;
-
-                // 使用原生 HTML form + 隱藏 iframe 傳送 POST。
-                // 這樣不需要 CORS，也不會讓學員看到 Google Form。
-                try {
-                    let iframe = document.getElementById("gas-submit-frame");
-                    if (!iframe) {
-                        iframe = document.createElement("iframe");
-                        iframe.id = "gas-submit-frame";
-                        iframe.name = "gas-submit-frame";
-                        iframe.style.display = "none";
-                        document.body.appendChild(iframe);
-                    }
-
-                    const form = document.createElement("form");
-                    form.method = "POST";
-                    form.action = GOOGLE_SCRIPT_URL;
-                    form.target = "gas-submit-frame";
-                    form.style.display = "none";
-
-                    const payload = {
-                        action: "register",
-                        type: type,
-                        name: data.name || "",
-                        phone: type === '台大生' ? "" : (data.phone || ""),
-                        studentId: type === '台大生' ? (data.studentId || "") : "",
-                        last5: data.last5 || ""
-                    };
-
-                    Object.entries(payload).forEach(([key, value]) => {
-                        const input = document.createElement("input");
-                        input.type = "hidden";
-                        input.name = key;
-                        input.value = value;
-                        form.appendChild(input);
-                    });
-
-                    document.body.appendChild(form);
-                    form.submit();
-                    form.remove();
-                } catch (e) {
-                    console.error("資料送出失敗", e);
-                    setLoading(false);
-                    alert("資料送出失敗，請稍後再試。");
-                    return;
-                }
-
-                // 保留原本的成功頁面與視覺設計，只把資料傳送方式改成直接寫入 Sheet。
-                setTimeout(() => {
-                    setLoading(false);
-                    setSuccessCode(code);
-                    setPage('success_barcode');
-                    setPurchaseData({ name: '', studentId: '', phone: '', last5: '' });
-                }, 1200);
-            };
-
-            return (
-                <div className="w-full max-w-md mx-auto bg-white min-h-screen shadow-lg relative flex flex-col">
-                    <Header />
-                    <main className="flex-1">
-                        {page === 'home' && (
-                            <div className="flex flex-col gap-4 p-6 animate-fade-in mt-4">
-                                <div className="text-center mb-6">
-                                    <div className="text-4xl mb-2">🥊</div>
-                                    <p className="text-gray-800 font-black text-2xl tracking-wider">台大拳擊社</p>
-                                    <p className="text-sm text-gray-500">學員報名與條碼系統</p>
-                                </div>
-                                <button onClick={() => setPage('purchase')} className="w-full bg-slate-100 border-2 border-slate-600 text-slate-800 p-5 rounded-2xl shadow-sm active:scale-95 transition-all text-left">
-                                    <span className="block text-xl font-bold">1. 購買課程</span><span className="text-xs opacity-75">填寫報名與匯款資訊</span>
-                                </button>
-                                <button onClick={() => setPage('barcode')} className="w-full bg-white border-2 border-red-800 text-red-800 p-5 rounded-2xl shadow-sm active:scale-95 transition-all text-left">
-                                    <span className="block text-xl font-bold">2. 獲取入場條碼</span><span className="text-xs opacity-75">忘記條碼可由此找回</span>
-                                </button>
-                            </div>
-                        )}
-                        {page === 'purchase' && <PurchaseForms setPage={setPage} purchaseData={purchaseData} setPurchaseData={setPurchaseData} loading={loading} submitToGAS={submitToGAS} />}
-                        {page === 'barcode' && <BarcodeGenPage setPage={setPage} lookupMember={lookupMember} />}
-                        {page === 'success_barcode' && (
-                            <div className="flex flex-col bg-white min-h-full">
-                                <BarcodeDisplayView codeToDisplay={successCode} onBack={() => setPage('home')} />
-                            </div>
-                        )}
-                    </main>
-                </div>
-            );
-        }
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+return (
+<div className="w-full max-w-md mx-auto bg-white min-h-screen shadow-lg relative flex flex-col">
+<Header />
+<main className="flex-1">
+{page === 'home' && (
+<div className="flex flex-col gap-4 p-6 animate-fade-in mt-4">
+<div className="text-center mb-6"><div className="text-4xl mb-2">🥊</div><p className="text-gray-800 font-black text-2xl tracking-wider">台大拳擊社</p><p className="text-sm text-gray-500">學員報名與條碼系統</p></div>
+<button onClick={() => setPage('purchase')} className="w-full bg-slate-100 border-2 border-slate-600 text-slate-800 p-5 rounded-2xl shadow-sm active:scale-95 transition-all text-left"><span className="block text-xl font-bold">1. 購買課程</span><span className="text-xs opacity-75">填寫報名與匯款資訊</span></button>
+<button onClick={() => setPage('barcode')} className="w-full bg-white border-2 border-red-800 text-red-800 p-5 rounded-2xl shadow-sm active:scale-95 transition-all text-left"><span className="block text-xl font-bold">2. 獲取入場條碼</span><span className="text-xs opacity-75">忘記條碼可由此找回</span></button>
+</div>
+)}
+{page === 'purchase' && <PurchaseForms setPage={setPage} purchaseData={purchaseData} setPurchaseData={setPurchaseData} loading={loading} submitToGAS={submitToGAS} />}
+{page === 'barcode' && <BarcodeGenPage setPage={setPage} lookupMember={lookupMember} />}
+{page === 'success_barcode' && <div className="flex flex-col bg-white min-h-full"><BarcodeDisplayView codeToDisplay={successCode} onBack={() => setPage('home')} /></div>}
+</main>
+</div>
+);
+}
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
 </body>
 </html>
