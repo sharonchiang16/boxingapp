@@ -112,28 +112,39 @@
             );
         };
 
-        const BarcodeGenPage = ({ setPage, membersDb }) => {
+        const BarcodeGenPage = ({ setPage, lookupMember }) => {
             const [inputValue, setInputValue] = useState('');
             const [searchedCode, setSearchedCode] = useState(null);
             const [errorMsg, setErrorMsg] = useState('');
+            const [searching, setSearching] = useState(false);
 
-            const handleGenerate = (e) => {
+            const handleGenerate = async (e) => {
                 e.preventDefault();
                 setErrorMsg('');
-                if (!inputValue) return;
+                if (!inputValue || searching) return;
+
                 const cleanCode = normalizeString(inputValue);
+                setSearching(true);
 
-                const foundMember = membersDb.find(m => {
-                    const phone = normalizeString(m.phone);     
-                    const studentId = normalizeString(m.studentId); 
-                    return (studentId && studentId.includes(cleanCode)) || (phone && phone.includes(cleanCode));
-                });
+                try {
+                    const data = await lookupMember(cleanCode);
 
-                if (!foundMember) {
-                    setErrorMsg("查無購課紀錄！系統找不到此學號/手機。請確認您是否已完成「購買課程」登記，或稍等幾分鐘讓後台同步。");
-                    return;
+                    if (!data || !data.success || !data.member) {
+                        setErrorMsg("查無購課紀錄！系統找不到此學號/手機。請確認您是否已完成「購買課程」登記，或稍等幾分鐘讓後台同步。");
+                        return;
+                    }
+
+                    // 條碼仍使用學員實際的學號／手機號碼，不改變原本顯示方式。
+                    const memberCode = normalizeString(
+                        data.member.studentId || data.member.phone || cleanCode
+                    );
+                    setSearchedCode(memberCode);
+                } catch (err) {
+                    console.error("資料庫查詢失敗", err);
+                    setErrorMsg("目前無法連線到資料庫，請稍後再試。");
+                } finally {
+                    setSearching(false);
                 }
-                setSearchedCode(cleanCode);
             };
 
             if (searchedCode) {
@@ -163,7 +174,7 @@
                             className="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-center text-lg uppercase tracking-wider focus:border-red-800 outline-none"
                             value={inputValue} onChange={(e) => setInputValue(e.target.value)} 
                         />
-                        <button type="submit" className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg shadow-md hover:bg-slate-900 active:scale-95 transition-all">驗證並產生條碼</button>
+                        <button type="submit" disabled={searching} className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg shadow-md hover:bg-slate-900 active:scale-95 transition-all disabled:opacity-50">{searching ? "查詢中..." : "驗證並產生條碼"}</button>
                     </form>
                 </div>
             );
@@ -249,50 +260,100 @@
             const [page, setPage] = useState('home');
             const [loading, setLoading] = useState(false);
             const [purchaseData, setPurchaseData] = useState({ name: '', studentId: '', phone: '', last5: '' });
-            const [membersDb, setMembersDb] = useState([]);
+            const [membersDb] = useState([]); // 保留原本狀態名稱，避免影響其他版面程式
             const [successCode, setSuccessCode] = useState('');
 
-            const fetchDatabase = useCallback(async () => {
-                try {
-                    const res = await fetch(GOOGLE_SCRIPT_URL + "?t=" + new Date().getTime());
-                    const data = await res.json();
-                    if (data && data.members) {
-                        setMembersDb(data.members);
-                    }
-                } catch (err) { console.error("資料庫讀取失敗", err); }
-            }, []);
+            // 不直接把整張 Sheet 下載到瀏覽器；查詢時才向 Apps Script 查單筆資料。
+            const lookupMember = useCallback((keyword) => {
+                return new Promise((resolve, reject) => {
+                    const callbackName = "__ntuBoxingLookup_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+                    const script = document.createElement("script");
+                    const timeout = setTimeout(() => {
+                        cleanup();
+                        reject(new Error("查詢逾時"));
+                    }, 10000);
 
-            useEffect(() => { fetchDatabase(); }, [fetchDatabase]);
+                    const cleanup = () => {
+                        clearTimeout(timeout);
+                        delete window[callbackName];
+                        if (script.parentNode) script.parentNode.removeChild(script);
+                    };
+
+                    window[callbackName] = (data) => {
+                        cleanup();
+                        resolve(data);
+                    };
+
+                    script.onerror = () => {
+                        cleanup();
+                        reject(new Error("資料庫查詢失敗"));
+                    };
+
+                    script.src = GOOGLE_SCRIPT_URL
+                        + "?action=find&keyword=" + encodeURIComponent(keyword)
+                        + "&callback=" + encodeURIComponent(callbackName)
+                        + "&t=" + Date.now();
+
+                    document.body.appendChild(script);
+                });
+            }, []);
 
             const submitToGAS = async (data, type) => {
                 setLoading(true);
                 const code = type === '台大生' ? data.studentId : data.phone;
 
-                const payload = {
-                    action: "register",
-                    type: type,
-                    name: data.name || "",
-                    phone: type === '台大生' ? "" : (data.phone || ""),
-                    studentId: type === '台大生' ? (data.studentId || "") : "",
-                    last5: data.last5 || ""
-                };
-
+                // 使用原生 HTML form + 隱藏 iframe 傳送 POST。
+                // 這樣不需要 CORS，也不會讓學員看到 Google Form。
                 try {
-                    await fetch(GOOGLE_SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                } catch(e) {}
+                    let iframe = document.getElementById("gas-submit-frame");
+                    if (!iframe) {
+                        iframe = document.createElement("iframe");
+                        iframe.id = "gas-submit-frame";
+                        iframe.name = "gas-submit-frame";
+                        iframe.style.display = "none";
+                        document.body.appendChild(iframe);
+                    }
 
+                    const form = document.createElement("form");
+                    form.method = "POST";
+                    form.action = GOOGLE_SCRIPT_URL;
+                    form.target = "gas-submit-frame";
+                    form.style.display = "none";
+
+                    const payload = {
+                        action: "register",
+                        type: type,
+                        name: data.name || "",
+                        phone: type === '台大生' ? "" : (data.phone || ""),
+                        studentId: type === '台大生' ? (data.studentId || "") : "",
+                        last5: data.last5 || ""
+                    };
+
+                    Object.entries(payload).forEach(([key, value]) => {
+                        const input = document.createElement("input");
+                        input.type = "hidden";
+                        input.name = key;
+                        input.value = value;
+                        form.appendChild(input);
+                    });
+
+                    document.body.appendChild(form);
+                    form.submit();
+                    form.remove();
+                } catch (e) {
+                    console.error("資料送出失敗", e);
+                    setLoading(false);
+                    alert("資料送出失敗，請稍後再試。");
+                    return;
+                }
+
+                // 保留原本的成功頁面與視覺設計，只把資料傳送方式改成直接寫入 Sheet。
                 setTimeout(() => {
-                    setLoading(false); 
+                    setLoading(false);
                     setSuccessCode(code);
-                    setPage('success_barcode'); 
+                    setPage('success_barcode');
                     setPurchaseData({ name: '', studentId: '', phone: '', last5: '' });
-                    fetchDatabase(); 
-                }, 1500);
+                }, 1200);
             };
 
             return (
@@ -315,7 +376,7 @@
                             </div>
                         )}
                         {page === 'purchase' && <PurchaseForms setPage={setPage} purchaseData={purchaseData} setPurchaseData={setPurchaseData} loading={loading} submitToGAS={submitToGAS} />}
-                        {page === 'barcode' && <BarcodeGenPage setPage={setPage} membersDb={membersDb} />}
+                        {page === 'barcode' && <BarcodeGenPage setPage={setPage} lookupMember={lookupMember} />}
                         {page === 'success_barcode' && (
                             <div className="flex flex-col bg-white min-h-full">
                                 <BarcodeDisplayView codeToDisplay={successCode} onBack={() => setPage('home')} />
